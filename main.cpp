@@ -54,8 +54,7 @@ void main()
   
   while(true)
   {
-    if(!digit.direction && digit.parking && eng.GetRpm() < 350)
-      digit.start_eng = true;
+    __NOP();
   }
 }
 
@@ -259,7 +258,7 @@ void CANInit()
   CAN_Init(CAN2, &CAN_InitStruct);
 
   CAN_FilterInitTypeDef CAN_FilterInitStruct;//без настройки фильтра не работает прием
-  CAN_SlaveStartBank(1);//необходимо так же задать номер фильтра, без него не принимает
+  CAN_SlaveStartBank(0);//необходимо так же задать номер фильтра, без него не принимает
   //CAN_FilterInitStruct.CAN_FilterIdHigh         = 0x0011 << 5;
   //CAN_FilterInitStruct.CAN_FilterIdLow          = 0x0010 << 5;
   //CAN_FilterInitStruct.CAN_FilterMaskIdHigh     = 0x0007 << 5;
@@ -271,7 +270,7 @@ void CANInit()
   CAN_FilterInitStruct.CAN_FilterMaskIdHigh     = 0x1FFFFF00 >> 13;
   CAN_FilterInitStruct.CAN_FilterMaskIdLow      = 0x0FFFF & (0xFFFF0 >> 1);
   CAN_FilterInitStruct.CAN_FilterFIFOAssignment = CAN_Filter_FIFO0;
-  CAN_FilterInitStruct.CAN_FilterNumber         = 1;
+  CAN_FilterInitStruct.CAN_FilterNumber         = 0;
   CAN_FilterInitStruct.CAN_FilterMode           = CAN_FilterMode_IdMask;
   CAN_FilterInitStruct.CAN_FilterScale          = CAN_FilterScale_32bit;
   CAN_FilterInitStruct.CAN_FilterActivation     = ENABLE;
@@ -451,8 +450,38 @@ extern "C"
         {
         case 0x004:
           digit.Set(RxMessage.Data[0]);
+          
           if(digit.parking && digit.parking_ch)
+          {
             kpp.ResetAllValve();
+            digit.clutch = 0;
+          }
+          else if(!digit.parking && digit.parking_ch)
+          {
+            kpp.SetAllOt();
+            kpp.SetAllBf();
+            digit.clutch    = 1;
+            digit.clutch_ch = true;
+          }
+          
+          if(digit.clutch_ch)
+          {
+            if(digit.clutch_state == 1)//'+'
+              kpp.ResetClutch(digit.clutch - 1);
+            else if(digit.clutch_state == 2)//'-'
+              kpp.ResetClutch(digit.clutch + 1);
+            kpp.SetClutch(digit.clutch);
+          }
+          
+          if(digit.direct_ch)
+          {
+            uint16_t rpm = eng.GetRpm();
+            ResetDirection(digit.old_direct);
+            if(rpm > 810)
+              eng.RequestRpm(800);
+            SetDirection(digit);
+            eng.RequestRpm(rpm);
+          }
           break;
         }
       else
@@ -462,6 +491,11 @@ extern "C"
           eng.SetRpm(RxMessage.Data[4] * 256 + RxMessage.Data[3]);
           break;
         }
+      
+      if(!digit.direction && digit.parking && eng.GetRpm() < 350)
+        digit.start_eng = true;
+      else
+        digit.start_eng = false;
     }
   }
 }
