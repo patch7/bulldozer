@@ -12,9 +12,12 @@ struct DigitalSignals
   uint8_t clutch_state : 2;//00 - none,   01 - '+',      10 - '-',           11 - Not available
   uint8_t parking      : 2;//00 - off,    01 - on,       10 - reserved,      11 - Don't care
   uint8_t auto_reverse : 2;//00 - off,    01 - on,       10 - reserved,      11 - Don't care
-  uint8_t start_eng    : 2;//00 - off,    01 - on,       10 - reserved,      11 - Don't care
   uint8_t clutch       : 2;//00 - 0,      01 - 1,        10 - 2,             11 - 3
+  uint8_t old_direct   : 2;//00 - N,      01 - F,        10 - R,             11 - Not available
+  uint8_t start_eng    : 1;//true/false
   uint8_t parking_ch   : 1;//true/false
+  uint8_t clutch_ch    : 1;//true/false
+  uint8_t direct_ch    : 1;//true/false
   //uint8_t KPPState     : 2;//00 - manual, 01 - auto low, 10 - auto high/low, 11 - Not available
   //uint8_t hold_KPP     : 2;//00 - off,    01 - on,       10 - reserved,      11 - Don't care
   //uint8_t load_condit  : 2;//00 - off,    01 - on,       10 - reserved,      11 - Don't care
@@ -25,7 +28,7 @@ struct DigitalSignals
 struct AnalogSignals
 {
   SlidingMedian SMleft, SMright, SMthrottle, SMbrake, SMdeceler, SMtemp;
-  void SendMsg(DigitalSignals);
+  void SendMsg(const DigitalSignals);
   void Set(const uint16_t*);
 };
 
@@ -42,6 +45,12 @@ public:
   void Forward();
   void Reverse();
   void ResetAllValve();
+  void SetAllOt();
+  void SetAllBf();
+  void SetClutch(const uint8_t);
+  void ResetClutch(const uint8_t);
+  void SetDirection(const uint8_t);
+  void ResetDirection(const uint8_t);
 private:
   //void SetClutch(const uint8_t, const uint8_t) const;
   void SetOtL();
