@@ -6,18 +6,39 @@ void DigitalSignals::Set(const uint8_t d)
     parking_ch = true;
   else
     parking_ch = false;
+  
+  old_direct   = direction
   direction    = 0x03 & (d >> 6);
   clutch_state = 0x03 & (d >> 4);
   parking      = 0x03 & (d >> 2);
   auto_reverse = 0x03 & d;
   
-  if(clutch < 3 && clutch_state == 1)
-    ++clutch;
-  else if(clutch > 0 && clutch_state == 2)
-    --clutch;
+  if(old_direct != direction)
+    direct_ch = true;
+  
+  switch(clutch_state)
+  {
+  case 0://none
+    clutch_ch = false;
+    break;
+  case 1://'+'
+    if(clutch < 3)
+    {
+      ++clutch;
+      clutch_ch = true;
+    }
+    break;
+  case 2://'-'
+    if(clutch > 1)
+    {
+      --clutch;
+      clutch_ch = true;
+    }
+    break;
+  }
 }
 
-void AnalogSignals::SendMsg(DigitalSignals d)
+void AnalogSignals::SendMsg(const DigitalSignals d)
 {
   CanTxMsg TxMessage;
   
@@ -62,6 +83,57 @@ void KPP::ResetAllValve()
   ResetThird();
   ResetForward();
   ResetReverse();
+}
+
+inline void KPP::SetAllOt()    { SetOtL(); SetOtR(); }
+inline void KPP::SetAllBf()    { SetBfL(); SetBfR(); }
+
+inline void KPP::SetClutch(const uint8_t d)
+{
+  switch(n)
+  {
+  case 1:
+    SetFirst();
+    break;
+  case 2:
+    SetSecond();
+    break;
+  case 3:
+    SetThird();
+    break;
+  }
+}
+
+inline void KPP::ResetClutch(const uint8_t n)
+{
+  switch(n)
+  {
+  case 1:
+    ResetFirst();
+    break;
+  case 2:
+    ResetSecond();
+    break;
+  case 3:
+    ResetThird();
+    break;
+  }
+}
+
+inline void KPP::SetDirection(const uint8_t d)
+{
+  if(d == 1)
+    SetForward();
+  else if(d == 2)
+    SetReverse();
+}
+
+inline void KPP::ResetDirection(const uint8_t d)
+{
+  if(d == 1)
+    ResetForward();
+  else if(d == 2)
+    ResetReverse();
 }
 
 inline void KPP::SetOtL()      { TIM_SetCompare1(TIM4, 500); }
