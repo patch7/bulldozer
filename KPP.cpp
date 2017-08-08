@@ -7,7 +7,7 @@ void DigitalSignals::Set(const uint8_t d)
   else
     parking_ch = false;
   
-  old_direct   = direction
+  old_direct   = direction;
   direction    = 0x03 & (d >> 6);
   clutch_state = 0x03 & (d >> 4);
   parking      = 0x03 & (d >> 2);
@@ -67,12 +67,13 @@ void AnalogSignals::Set(const uint16_t *data)
   SMtemp.push(data[5]);
 }
 
-void KPP::Forward()
+void KPP::Brake(const uint8_t d) const
 {
-
+   TIM_SetCompare1(TIM4, 500 - d * 5);//500 - d * 500 / 100
+   TIM_SetCompare2(TIM4, 500 - d * 5);//500 - d * 500 / 100
 }
 
-void KPP::ResetAllValve()
+void KPP::ResetAllValve() const
 {
   ResetOtL();
   ResetOtR();
@@ -85,12 +86,13 @@ void KPP::ResetAllValve()
   ResetReverse();
 }
 
-inline void KPP::SetAllOt()    { SetOtL(); SetOtR(); }
-inline void KPP::SetAllBf()    { SetBfL(); SetBfR(); }
+void KPP::SetAllOt() const    { SetOtL(); SetOtR(); }
+void KPP::ResetAllOt() const  { ResetOtL(); ResetOtR(); }
+void KPP::SetAllBf() const    { SetBfL(); SetBfR(); }
 
-inline void KPP::SetClutch(const uint8_t d)
+void KPP::SetClutch(const uint8_t d) const
 {
-  switch(n)
+  switch(d)
   {
   case 1:
     SetFirst();
@@ -104,9 +106,9 @@ inline void KPP::SetClutch(const uint8_t d)
   }
 }
 
-inline void KPP::ResetClutch(const uint8_t n)
+void KPP::ResetClutch(const uint8_t d) const
 {
-  switch(n)
+  switch(d)
   {
   case 1:
     ResetFirst();
@@ -120,7 +122,7 @@ inline void KPP::ResetClutch(const uint8_t n)
   }
 }
 
-inline void KPP::SetDirection(const uint8_t d)
+void KPP::SetDirection(const uint8_t d) const
 {
   if(d == 1)
     SetForward();
@@ -128,7 +130,7 @@ inline void KPP::SetDirection(const uint8_t d)
     SetReverse();
 }
 
-inline void KPP::ResetDirection(const uint8_t d)
+void KPP::ResetDirection(const uint8_t d) const
 {
   if(d == 1)
     ResetForward();
@@ -136,29 +138,29 @@ inline void KPP::ResetDirection(const uint8_t d)
     ResetReverse();
 }
 
-inline void KPP::SetOtL()      { TIM_SetCompare1(TIM4, 500); }
-inline void KPP::ResetOtL()    { TIM_SetCompare1(TIM4, 0); }
+inline void KPP::SetOtL() const       { TIM_SetCompare1(TIM4, 500); }
+inline void KPP::ResetOtL() const     { TIM_SetCompare1(TIM4, 0); }
 
-inline void KPP::SetOtR()      { TIM_SetCompare2(TIM4, 500); }
-inline void KPP::ResetOtR()    { TIM_SetCompare2(TIM4, 0); }
+inline void KPP::SetOtR() const       { TIM_SetCompare2(TIM4, 500); }
+inline void KPP::ResetOtR() const     { TIM_SetCompare2(TIM4, 0); }
 
-inline void KPP::SetBfL()      { TIM_SetCompare3(TIM4, 500); }
-inline void KPP::ResetBfL()    { TIM_SetCompare3(TIM4, 0); }
+inline void KPP::SetBfL() const       { TIM_SetCompare3(TIM4, 500); }
+inline void KPP::ResetBfL() const     { TIM_SetCompare3(TIM4, 0); }
 
-inline void KPP::SetBfR()      { TIM_SetCompare4(TIM4, 500); }
-inline void KPP::ResetBfR()    { TIM_SetCompare4(TIM4, 0); }
+inline void KPP::SetBfR() const       { TIM_SetCompare4(TIM4, 500); }
+inline void KPP::ResetBfR() const     { TIM_SetCompare4(TIM4, 0); }
 
-inline void KPP::SetFirst()    { TIM_SetCompare1(TIM3, 500); }
-inline void KPP::ResetFirst()  { TIM_SetCompare1(TIM3, 0); }
+inline void KPP::SetFirst() const     { TIM_SetCompare1(TIM3, 500); }
+inline void KPP::ResetFirst() const   { TIM_SetCompare1(TIM3, 0); }
 
-inline void KPP::SetSecond()   { TIM_SetCompare2(TIM3, 500); }
-inline void KPP::ResetSecond() { TIM_SetCompare2(TIM3, 0); }
+inline void KPP::SetSecond() const    { TIM_SetCompare2(TIM3, 500); }
+inline void KPP::ResetSecond() const  { TIM_SetCompare2(TIM3, 0); }
 
-inline void KPP::SetThird()    { TIM_SetCompare3(TIM3, 500); }
-inline void KPP::ResetThird()  { TIM_SetCompare3(TIM3, 0); }
+inline void KPP::SetThird() const     { TIM_SetCompare3(TIM3, 500); }
+inline void KPP::ResetThird() const   { TIM_SetCompare3(TIM3, 0); }
 
-inline void KPP::SetForward()  { TIM_SetCompare4(TIM3, 500); }
-inline void KPP::ResetForward(){ TIM_SetCompare4(TIM3, 0); }
+inline void KPP::SetForward() const   { TIM_SetCompare4(TIM3, 500); }
+inline void KPP::ResetForward() const { TIM_SetCompare4(TIM3, 0); }
 
-inline void KPP::SetReverse()  { TIM_SetCompare1(TIM1, 500); }
-inline void KPP::ResetReverse(){ TIM_SetCompare1(TIM1, 0); }
+inline void KPP::SetReverse() const   { TIM_SetCompare1(TIM1, 500); }
+inline void KPP::ResetReverse() const { TIM_SetCompare1(TIM1, 0); }

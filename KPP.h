@@ -22,7 +22,8 @@ struct DigitalSignals
   //uint8_t hold_KPP     : 2;//00 - off,    01 - on,       10 - reserved,      11 - Don't care
   //uint8_t load_condit  : 2;//00 - off,    01 - on,       10 - reserved,      11 - Don't care
   void Set(const uint8_t);
-  DigitalSignals() : direction(0), clutch_state(0), parking(0), auto_reverse(0), start_eng(0), clutch(0) {}
+  DigitalSignals() : clutch_state(0), old_direct(0), direction(0), direct_ch(0), parking(0),
+                     auto_reverse(0), parking_ch(0), start_eng(0), clutch_ch(0), clutch(0) {}
 };
 
 struct AnalogSignals
@@ -42,43 +43,37 @@ public:
   KPP& operator= (KPP&&)      = delete;
   ~KPP()                      = default;
   
-  void Forward();
-  void Reverse();
-  void ResetAllValve();
-  void SetAllOt();
-  void SetAllBf();
-  void SetClutch(const uint8_t);
-  void ResetClutch(const uint8_t);
-  void SetDirection(const uint8_t);
-  void ResetDirection(const uint8_t);
+  void SetAllOt()                    const;
+  void ResetAllOt()                  const;
+  void Brake(const uint8_t)          const;
+  void ResetAllValve()               const;
+  void SetAllBf()                    const;
+  void SetClutch(const uint8_t)      const;
+  void ResetClutch(const uint8_t)    const;
+  void SetDirection(const uint8_t)   const;
+  void ResetDirection(const uint8_t) const;
 private:
   //void SetClutch(const uint8_t, const uint8_t) const;
-  void SetOtL();
-  void ResetOtL();
+  void ResetOtL()     const;
+  void ResetOtR()     const;
+  void ResetFirst()   const;
+  void ResetSecond()  const;
+  void ResetThird()   const;
+  void ResetForward() const;
+  void ResetReverse() const;
   
-  void SetOtR();
-  void ResetOtR();
-  
-  void SetBfL();
-  void ResetBfL();
-  
-  void SetBfR();
-  void ResetBfR();
-  
-  void SetFirst();
-  void ResetFirst();
-  
-  void SetSecond();
-  void ResetSecond();
-  
-  void SetThird();
-  void ResetThird();
-  
-  void SetForward();
-  void ResetForward();
-  
-  void SetReverse();
-  void ResetReverse();
+  //особой необходимости в этих методах нет, используются только по 1 разу.
+  void ResetBfL()     const;
+  void ResetBfR()     const;
+  void SetOtL()       const;
+  void SetOtR()       const;
+  void SetBfL()       const;
+  void SetBfR()       const;
+  void SetFirst()     const;
+  void SetSecond()    const;
+  void SetThird()     const;
+  void SetForward()   const;
+  void SetReverse()   const;
 };
 
 #endif /* __KPP */
