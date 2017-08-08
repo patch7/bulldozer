@@ -391,6 +391,13 @@ extern "C"
     {
       DMA_ClearITPendingBit(DMA2_Stream0,DMA_IT_TCIF0);
       analog.Set(ADCValue);
+      
+      if((analog.SMbrake.get() * 100 / 4095) <= 5)
+        kpp.SetAllOt();//здесь неприятный мне момент, когда педаль отпущена постоянно будет записываться в регистры
+      else if((analog.SMbrake.get() * 100 / 4095) >= 95)
+        kpp.ResetAllOt();
+      else
+        kpp.Brake(analog.SMbrake.get() * 100 / 4095);
     }
   }
   
@@ -476,12 +483,22 @@ extern "C"
           if(digit.direct_ch)
           {
             uint16_t rpm = eng.GetRpm();
-            ResetDirection(digit.old_direct);
-            if(rpm > 810)
-              eng.RequestRpm(800);
-            SetDirection(digit);
-            eng.RequestRpm(rpm);
+            if(!digit.old_direct)
+              kpp.ResetDirection(digit.old_direct);
+            if(!digit.direction)
+            {
+              if(rpm > 810)
+                eng.RequestRpm(800);
+              kpp.SetDirection(digit.direction);
+              eng.RequestRpm(rpm);
+            }
           }
+          
+          if(!digit.direction && digit.parking && eng.GetRpm() < 350)
+            digit.start_eng = true;
+          else
+            digit.start_eng = false;
+      
           break;
         }
       else
@@ -491,11 +508,6 @@ extern "C"
           eng.SetRpm(RxMessage.Data[4] * 256 + RxMessage.Data[3]);
           break;
         }
-      
-      if(!digit.direction && digit.parking && eng.GetRpm() < 350)
-        digit.start_eng = true;
-      else
-        digit.start_eng = false;
     }
   }
 }
