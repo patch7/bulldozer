@@ -17,8 +17,6 @@ void SlidingMedian::push(const uint16_t z)
 
 uint16_t SlidingMedian::get()
 {
-  uint16_t mediane = 0;
-  
   if(is_change)
   {
     uint16_t* arr = new uint16_t[size];
@@ -37,6 +35,5 @@ uint16_t SlidingMedian::get()
     delete[] arr;
     is_change = false;
   }
-  
   return mediane;
 }
