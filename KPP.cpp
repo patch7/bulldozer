@@ -69,8 +69,8 @@ void AnalogSignals::Set(const uint16_t *data)
 
 void KPP::Brake(const uint8_t d) const
 {
-   TIM_SetCompare1(TIM4, 500 - d * 5);//500 - d * 500 / 100
-   TIM_SetCompare2(TIM4, 500 - d * 5);//500 - d * 500 / 100
+   TIM_SetCompare1(TIM4, 500 - d * 5);//500 - d * 500 / 100  OT левое
+   TIM_SetCompare2(TIM4, 500 - d * 5);//500 - d * 500 / 100  ОТ правое
 }
 
 void KPP::ResetAllValve() const
@@ -162,5 +162,5 @@ inline void KPP::ResetThird() const   { TIM_SetCompare3(TIM3, 0); }
 inline void KPP::SetForward() const   { TIM_SetCompare4(TIM3, 500); }
 inline void KPP::ResetForward() const { TIM_SetCompare4(TIM3, 0); }
 
-inline void KPP::SetReverse() const   { TIM_SetCompare1(TIM1, 500); }
-inline void KPP::ResetReverse() const { TIM_SetCompare1(TIM1, 0); }
+inline void KPP::SetReverse() const   { TIM_SetCompare2(TIM1, 500); }
+inline void KPP::ResetReverse() const { TIM_SetCompare2(TIM1, 0); }
