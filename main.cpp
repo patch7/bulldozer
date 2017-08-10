@@ -10,14 +10,25 @@
 #include "engine.h"
 #include "KPP.h"
 
-#define left     ADCValue[0]
-#define right    ADCValue[1]
-#define throttle ADCValue[2]
-#define brake    ADCValue[3]
-#define deceler  ADCValue[4]
-#define temp     ADCValue[5]
+#define LEFT     (ADCValue[0])
+#define RIGHT    (ADCValue[1])
+#define THROTTLE (ADCValue[2])
+#define BRAKE    (ADCValue[3])
+#define DECELER  (ADCValue[4])
+#define TEMP     (ADCValue[5])
+
+#define OT_LEFT  (ADCPWM[0])
+#define OT_RIGHT (ADCPWM[1])
+#define BF_LEFT  (ADCPWM[2])
+#define BF_RIGHT (ADCPWM[3])
+#define FIRST    (ADCPWM[4])
+#define SECOND   (ADCPWM[5])
+#define THIRD    (ADCPWM[6])
+#define FORWARD  (ADCPWM[7])
+#define REVERSE  (ADCPWM[8])
 
 static uint16_t ADCValue[6] = {0};
+static uint16_t ADCPWM[9]   = {0};
 static uint32_t time_ms     = 0;
 
 void MaxAllRccBusConfig(void);
@@ -36,19 +47,19 @@ void main()
 {
   MaxAllRccBusConfig();
   
-  GPIO_DeInit(GPIOA);//CAN1, ADC3_ch_1, TIM1-PWM
-  GPIO_DeInit(GPIOB);//TIM4-PWM, CAN2
-  GPIO_DeInit(GPIOC);//ADC3_ch_10, ADC3_ch_11, TIM3-PWM
+  GPIO_DeInit(GPIOA);//CAN1, ADC2_ch_1, ADC2_ch_4, ADC2_ch_5, ADC2_ch_7, TIM1-PWM
+  GPIO_DeInit(GPIOB);//TIM4-PWM, CAN2, ADC2_ch_8
+  GPIO_DeInit(GPIOC);//ADC3_ch_10, ADC3_ch_11, ADC2_ch_12 - ADC2_ch_15, TIM3-PWM
   GPIO_DeInit(GPIOF);//ADC3_ch_4, ADC3_ch_6, - ADC3_ch_8
   
-  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);//CAN1, ADC3_ch_1, TIM1-PWM
-  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);//TIM4-PWM, CAN2
-  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);//ADC3_ch_10, ADC3_ch_11, TIM3-PWM
-  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOF, ENABLE);//ADC3_ch_6 - ADC3_ch_8
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);//CAN1, ADC2_ch_1, ADC2_ch_4, ADC2_ch_5, ADC2_ch_7, TIM1-PWM
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);//TIM4-PWM, CAN2, ADC2_ch_8
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);//ADC3_ch_10, ADC3_ch_11, ADC2_ch_12 - ADC2_ch_15, TIM3-PWM
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOF, ENABLE);//ADC3_ch_4, ADC3_ch_6, - ADC3_ch_8
   
+  CANInit();
   DMAforADCInit();
   ADCInputInit();
-  CANInit();
   TIM_PWMInit();
   TimerInit();
   
@@ -88,10 +99,11 @@ void MaxAllRccBusConfig()
   }
 }
 
-//Настраиваем модуль DMA2 для автоматической обработки всех каналов АЦП3
+//Настраиваем модуль DMA2 для автоматической обработки всех каналов АЦП3 и АЦП2
 void DMAforADCInit()
 {
   DMA_DeInit(DMA2_Stream0);
+  DMA_DeInit(DMA2_Stream2);
   RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA2, ENABLE);
 
   DMA_InitTypeDef DMA_InitStruct;
@@ -107,9 +119,17 @@ void DMAforADCInit()
   DMA_InitStruct.DMA_Mode               = DMA_Mode_Circular;
   DMA_InitStruct.DMA_FIFOThreshold      = DMA_FIFOThreshold_HalfFull;
   DMA_Init(DMA2_Stream0, &DMA_InitStruct);
-
+  
+  DMA_InitStruct.DMA_Channel            = DMA_Channel_1;
+  DMA_InitStruct.DMA_PeripheralBaseAddr = (uint32_t)&(ADC2->DR);
+  DMA_InitStruct.DMA_Memory0BaseAddr    = (uint32_t)ADCPWM;
+  DMA_InitStruct.DMA_BufferSize         = 9;
+  DMA_Init(DMA2_Stream2, &DMA_InitStruct);
+  
   DMA_ITConfig(DMA2_Stream0, DMA_IT_TC, ENABLE);//если прерывание ненадо, можно ли убрать
+  DMA_ITConfig(DMA2_Stream2, DMA_IT_TC, ENABLE);//если прерывание ненадо, можно ли убрать
   DMA_Cmd(DMA2_Stream0, ENABLE);
+  DMA_Cmd(DMA2_Stream2, ENABLE);
 
   //Настройка прерывания, без него не работает!
   NVIC_InitTypeDef NVIC_InitStruct;
@@ -117,6 +137,9 @@ void DMAforADCInit()
   NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 0x0;
   NVIC_InitStruct.NVIC_IRQChannelSubPriority        = 0x0;
   NVIC_InitStruct.NVIC_IRQChannelCmd                = ENABLE;
+  NVIC_Init(&NVIC_InitStruct);
+  
+  NVIC_InitStruct.NVIC_IRQChannel                   = DMA2_Stream2_IRQn;
   NVIC_Init(&NVIC_InitStruct);
 }
 
@@ -130,15 +153,22 @@ void ADCInputInit()
 {
   ADC_DeInit();
   RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC3, ENABLE);
+  RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC2, ENABLE);
 
   GPIO_InitTypeDef GPIO_InitStruct;
   GPIO_StructInit(&GPIO_InitStruct);
-
-  GPIO_InitStruct.GPIO_Pin   = GPIO_Pin_0 | GPIO_Pin_1;
+  
+  GPIO_InitStruct.GPIO_Pin   = GPIO_Pin_1 | GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_7;
   GPIO_InitStruct.GPIO_Mode  = GPIO_Mode_AN;
   GPIO_InitStruct.GPIO_Speed = GPIO_High_Speed;
-  GPIO_Init(GPIOC, &GPIO_InitStruct);
+  GPIO_Init(GPIOA, &GPIO_InitStruct);
+  
+  GPIO_InitStruct.GPIO_Pin   = GPIO_Pin_0;
+  GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+  GPIO_InitStruct.GPIO_Pin   = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 | GPIO_Pin_4 | GPIO_Pin_5;
+  GPIO_Init(GPIOC, &GPIO_InitStruct);
+  
   GPIO_InitStruct.GPIO_Pin   = GPIO_Pin_6 | GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10;
   GPIO_Init(GPIOF, &GPIO_InitStruct);
 
@@ -155,21 +185,37 @@ void ADCInputInit()
   ADC_InitStruct.ADC_NbrOfConversion      = 6;
   //ADC_InitStruct.ADC_ContinuousConvMode   = ENABLE;
   ADC_Init(ADC3, &ADC_InitStruct);
+  
+  ADC_InitStruct.ADC_NbrOfConversion      = 9;
+  ADC_Init(ADC2, &ADC_InitStruct);
 
-  //ADC_RegularChannelConfig(ADC3, ADC_Channel_1,  1, ADC_SampleTime_480Cycles);
   ADC_RegularChannelConfig(ADC3, ADC_Channel_6,  1, ADC_SampleTime_480Cycles);
   ADC_RegularChannelConfig(ADC3, ADC_Channel_7,  2, ADC_SampleTime_480Cycles);
   ADC_RegularChannelConfig(ADC3, ADC_Channel_8,  3, ADC_SampleTime_480Cycles);
   ADC_RegularChannelConfig(ADC3, ADC_Channel_10, 4, ADC_SampleTime_480Cycles);
   ADC_RegularChannelConfig(ADC3, ADC_Channel_11, 5, ADC_SampleTime_480Cycles);
   ADC_RegularChannelConfig(ADC3, ADC_Channel_4,  6, ADC_SampleTime_480Cycles);
+  
+  ADC_RegularChannelConfig(ADC2, ADC_Channel_1,  1, ADC_SampleTime_480Cycles);//OT left
+  ADC_RegularChannelConfig(ADC2, ADC_Channel_4,  2, ADC_SampleTime_480Cycles);//OT right
+  ADC_RegularChannelConfig(ADC2, ADC_Channel_13, 3, ADC_SampleTime_480Cycles);//BF left
+  ADC_RegularChannelConfig(ADC2, ADC_Channel_12, 4, ADC_SampleTime_480Cycles);//BF right
+  ADC_RegularChannelConfig(ADC2, ADC_Channel_8,  5, ADC_SampleTime_480Cycles);//1
+  ADC_RegularChannelConfig(ADC2, ADC_Channel_7,  6, ADC_SampleTime_480Cycles);//2
+  ADC_RegularChannelConfig(ADC2, ADC_Channel_5,  7, ADC_SampleTime_480Cycles);//3
+  ADC_RegularChannelConfig(ADC2, ADC_Channel_15, 8, ADC_SampleTime_480Cycles);//Forward
+  ADC_RegularChannelConfig(ADC2, ADC_Channel_14, 9, ADC_SampleTime_480Cycles);//Reverse
 
   //Запрос после последней передачи, без него не работает
   ADC_DMARequestAfterLastTransferCmd(ADC3, ENABLE);
+  ADC_DMARequestAfterLastTransferCmd(ADC2, ENABLE);
   ADC_DMACmd(ADC3, ENABLE);
+  ADC_DMACmd(ADC2, ENABLE);
   //ADC_ContinuousModeCmd(ADC3, ENABLE);
   ADC_Cmd(ADC3, ENABLE);
+  ADC_Cmd(ADC2, ENABLE);
   ADC_SoftwareStartConv(ADC3);
+  ADC_SoftwareStartConv(ADC2);
 }
 
 /*******************************************************************************
@@ -389,7 +435,7 @@ extern "C"
   {
     if(DMA_GetITStatus(DMA2_Stream0, DMA_IT_TCIF0))
     {
-      DMA_ClearITPendingBit(DMA2_Stream0,DMA_IT_TCIF0);
+      DMA_ClearITPendingBit(DMA2_Stream0, DMA_IT_TCIF0);
       analog.Set(ADCValue);
       
       if((analog.SMbrake.get() * 100 / 4095) <= 5)
@@ -398,6 +444,14 @@ extern "C"
         kpp.ResetAllOt();
       else
         kpp.Brake(analog.SMbrake.get() * 100 / 4095);
+    }
+  }
+  
+  void DMA2_Stream2_IRQHandler()
+  {
+    if(DMA_GetITStatus(DMA2_Stream2, DMA_IT_TCIF0))
+    {
+      DMA_ClearITPendingBit(DMA2_Stream2, DMA_IT_TCIF0);
     }
   }
   
@@ -423,18 +477,23 @@ extern "C"
       TIM_ClearITPendingBit(TIM7, TIM_IT_Update);
       ++time_ms;
       
-      if(!(time_ms % 100))
+      if(!(time_ms % 500))
       {
         CanTxMsg TxMessage;
         TxMessage.RTR   = CAN_RTR_DATA;
         TxMessage.IDE   = CAN_ID_STD;
         TxMessage.StdId   = 0x001;
-        TxMessage.DLC     = 4;
+        TxMessage.DLC     = 8;
         TxMessage.Data[0] = time_ms % 256;
         TxMessage.Data[1] = time_ms / 256;
         TxMessage.Data[2] = time_ms / (256*256);
         TxMessage.Data[3] = time_ms / (256*256*256);
+        TxMessage.Data[4] = OT_LEFT  * 100 / 4095;
+        TxMessage.Data[5] = OT_RIGHT * 100 / 4095;
+        TxMessage.Data[6] = BF_LEFT  * 100 / 4095;
+        TxMessage.Data[7] = BF_RIGHT * 100 / 4095;
         CAN_Transmit(CAN2, &TxMessage);
+        
         analog.SendMsg(digit);
       }
     }
