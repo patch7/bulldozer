@@ -449,9 +449,9 @@ extern "C"
   
   void DMA2_Stream2_IRQHandler()
   {
-    if(DMA_GetITStatus(DMA2_Stream2, DMA_IT_TCIF0))
+    if(DMA_GetITStatus(DMA2_Stream2, DMA_IT_TCIF2))
     {
-      DMA_ClearITPendingBit(DMA2_Stream2, DMA_IT_TCIF0);
+      DMA_ClearITPendingBit(DMA2_Stream2, DMA_IT_TCIF2);
     }
   }
   
@@ -477,7 +477,7 @@ extern "C"
       TIM_ClearITPendingBit(TIM7, TIM_IT_Update);
       ++time_ms;
       
-      if(!(time_ms % 500))
+      if(!(time_ms % 250))
       {
         CanTxMsg TxMessage;
         TxMessage.RTR   = CAN_RTR_DATA;
