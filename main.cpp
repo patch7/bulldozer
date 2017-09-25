@@ -444,7 +444,7 @@ extern "C"
         kpp.ResetAllOt();
       else
         kpp.Brake(analog.SMbrake.get() * 100 / 4095);
-    }
+    }//управление клапанами ОТ идет с двух мест, надо поставить приоритет!!!
   }
   
   void DMA2_Stream2_IRQHandler()
@@ -519,7 +519,7 @@ extern "C"
           
           if(digit.parking && digit.parking_ch)
           {
-            kpp.ResetAllValve();
+            kpp.ResetAllValve();//управление клапанами ОТ идет с двух мест
             digit.clutch = 0;
           }
           else if(!digit.parking && digit.parking_ch)
@@ -542,9 +542,9 @@ extern "C"
           if(digit.direct_ch)
           {
             uint16_t rpm = eng.GetRpm();
-            if(!digit.old_direct)
+            if(!digit.old_direct)//ошибка инверсия не нужна
               kpp.ResetDirection(digit.old_direct);
-            if(!digit.direction)
+            if(!digit.direction)//ошбика инверсия не нужна
             {
               if(rpm > 810)
                 eng.RequestRpm(800);

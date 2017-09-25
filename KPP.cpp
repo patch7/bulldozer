@@ -8,10 +8,10 @@ void DigitalSignals::Set(const uint8_t d)
     parking_ch = false;
   
   old_direct   = direction;
-  direction    = 0x03 & (d >> 6);
+  direction    = 0x03 & (d >> 6);//надо пменять местами, сначало меньшие сдвиги
   clutch_state = 0x03 & (d >> 4);
   parking      = 0x03 & (d >> 2);
-  auto_reverse = 0x03 & d;
+  auto_reverse = 0x03 & d;//надо переставить до условия со сдвигом
   
   if(old_direct != direction)
     direct_ch = true;
@@ -137,30 +137,3 @@ void KPP::ResetDirection(const uint8_t d) const
   else if(d == 2)
     ResetReverse();
 }
-
-inline void KPP::SetOtL() const       { TIM_SetCompare1(TIM4, 500); }
-inline void KPP::ResetOtL() const     { TIM_SetCompare1(TIM4, 0); }
-
-inline void KPP::SetOtR() const       { TIM_SetCompare2(TIM4, 500); }
-inline void KPP::ResetOtR() const     { TIM_SetCompare2(TIM4, 0); }
-
-inline void KPP::SetBfL() const       { TIM_SetCompare3(TIM4, 500); }
-inline void KPP::ResetBfL() const     { TIM_SetCompare3(TIM4, 0); }
-
-inline void KPP::SetBfR() const       { TIM_SetCompare4(TIM4, 500); }
-inline void KPP::ResetBfR() const     { TIM_SetCompare4(TIM4, 0); }
-
-inline void KPP::SetFirst() const     { TIM_SetCompare1(TIM3, 500); }
-inline void KPP::ResetFirst() const   { TIM_SetCompare1(TIM3, 0); }
-
-inline void KPP::SetSecond() const    { TIM_SetCompare2(TIM3, 500); }
-inline void KPP::ResetSecond() const  { TIM_SetCompare2(TIM3, 0); }
-
-inline void KPP::SetThird() const     { TIM_SetCompare3(TIM3, 500); }
-inline void KPP::ResetThird() const   { TIM_SetCompare3(TIM3, 0); }
-
-inline void KPP::SetForward() const   { TIM_SetCompare4(TIM3, 500); }
-inline void KPP::ResetForward() const { TIM_SetCompare4(TIM3, 0); }
-
-inline void KPP::SetReverse() const   { TIM_SetCompare2(TIM1, 500); }
-inline void KPP::ResetReverse() const { TIM_SetCompare2(TIM1, 0); }
