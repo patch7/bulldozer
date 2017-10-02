@@ -47,15 +47,15 @@ void main()
 {
   MaxAllRccBusConfig();
   
-  GPIO_DeInit(GPIOA);//CAN1, ADC2_ch_1, ADC2_ch_4, ADC2_ch_5, ADC2_ch_7, TIM1-PWM
-  GPIO_DeInit(GPIOB);//TIM4-PWM, CAN2, ADC2_ch_8
-  GPIO_DeInit(GPIOC);//ADC3_ch_10, ADC3_ch_11, ADC2_ch_12 - ADC2_ch_15, TIM3-PWM
-  GPIO_DeInit(GPIOF);//ADC3_ch_4, ADC3_ch_6, - ADC3_ch_8
+  GPIO_DeInit(GPIOA);//CAN1, ADC2ch1, ADC2ch4, ADC2ch5, ADC2ch7, TIM1-PWM
+  GPIO_DeInit(GPIOB);//TIM4-PWM, CAN2, ADC2ch8
+  GPIO_DeInit(GPIOC);//ADC3ch10, ADC3ch11, ADC2ch12-ADC2ch15, TIM3-PWM
+  GPIO_DeInit(GPIOF);//ADC3ch4, ADC3ch6-ADC3ch8
   
-  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);//CAN1, ADC2_ch_1, ADC2_ch_4, ADC2_ch_5, ADC2_ch_7, TIM1-PWM
-  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);//TIM4-PWM, CAN2, ADC2_ch_8
-  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);//ADC3_ch_10, ADC3_ch_11, ADC2_ch_12 - ADC2_ch_15, TIM3-PWM
-  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOF, ENABLE);//ADC3_ch_4, ADC3_ch_6, - ADC3_ch_8
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);//CAN1, ADC2ch1, ADC2ch4, ADC2ch5, ADC2ch7, TIM1-PWM
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);//TIM4-PWM, CAN2, ADC2ch8
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);//ADC3ch10, ADC3ch11, ADC2ch12-ADC2ch15, TIM3-PWM
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOF, ENABLE);//ADC3ch4, ADC3ch6-ADC3ch8
   
   CANInit();
   DMAforADCInit();
@@ -64,8 +64,66 @@ void main()
   TimerInit();
   
   while(true)
-  {
+  {          
     __NOP();
+  }
+}
+
+void SetClutch()
+{
+  if(digit.clutch_ch && eng.GetRpm() > 350)
+  {
+    if(digit.clutch_state == 1 && digit.clutch < 3)//'+'
+    {
+      kpp.ResetClutch(digit.clutch);
+      kpp.SetClutch(++digit.clutch);
+    }
+    else if(digit.clutch_state == 2 && digit.clutch > 1)//'-'
+    {
+      kpp.ResetClutch(digit.clutch);
+      kpp.SetClutch(--digit.clutch);
+    }
+  }
+  CanTxMsg TxMessage;
+  TxMessage.RTR     = CAN_RTR_DATA;
+  TxMessage.IDE     = CAN_ID_STD;
+  TxMessage.StdId   = 0x011;
+  TxMessage.DLC     = 8;
+  TxMessage.Data[0] = 0;
+  TxMessage.Data[1] = 0;
+  TxMessage.Data[2] = 0;
+  TxMessage.Data[3] = 0;
+  TxMessage.Data[4] = 0;
+  TxMessage.Data[5] = 0;
+  TxMessage.Data[6] = 0;
+  TxMessage.Data[7] = digit.clutch;
+  CAN_Transmit(CAN2, &TxMessage);
+}
+
+void BrakeParking()
+{
+  if(digit.parking && digit.parking_ch)
+  {
+    kpp.ResetAllValve();
+    digit.clutch = 0;
+  }
+  else if(!digit.parking)
+  {
+    if((analog.SMbrake.get() * 100 / 4095) <= 5)
+      kpp.SetAllOt();
+    else if((analog.SMbrake.get() * 100 / 4095) >= 95)
+      kpp.ResetAllOt();
+    else
+      kpp.Brake(analog.SMbrake.get() * 100 / 4095);
+
+    if(digit.parking_ch)
+    {
+      kpp.SetAllBf();
+      //kpp.ResetAllClutch();
+
+      if(eng.GetRpm() > 350)
+        kpp.SetClutch(digit.clutch = 1);
+    }
   }
 }
 
@@ -143,12 +201,9 @@ void DMAforADCInit()
   NVIC_Init(&NVIC_InitStruct);
 }
 
-/*******************************************************************************
-Настраиваем АЦП3 каналы 4, 6 - 8, 10, 11 на преобразование по прерыванию таймера
-2 ОС2. Чтобы прерывание срабатывало в 2 раза быстрее таймера 2, было настроенно
-прерывание по спаду и нарастанию сигнала(ADC_ExternalTrigConvEdge_RisingFalling).
-Это необходимо для улучшения отклика системы на управление потенциометром.
-*******************************************************************************/
+/******************************************************************************
+Настраиваем АЦП3 каналы 4, 6 - 8, 10, 11 на преобразование по прерыванию таймера 2 ОС2. Чтобы прерывание срабатывало в 2 раза быстрее таймера 2, было настроенно прерывание по спаду и нарастанию сигнала(ADC_ExternalTrigConvEdge_RisingFalling). Это необходимо для улучшения отклика системы на управление потенциометром.
+******************************************************************************/
 void ADCInputInit()
 {
   ADC_DeInit();
@@ -218,13 +273,9 @@ void ADCInputInit()
   ADC_SoftwareStartConv(ADC2);
 }
 
-/*******************************************************************************
-Настраиваем таймер 2 и 7 для прерывания ADC и подсчета времени. Увеличена скорость
-прерывания канала по средствам установки реакции по спадающему и нарастающему
-фронту сигнала одновременно(ADC_ExternalTrigConvEdge_RisingFalling) для обработки
-с помощью DMA каналов АЦП и чтобы за время прерывания таймера 2, успел заполниться
-класс скользящей медианы.
-*******************************************************************************/
+/******************************************************************************
+Настраиваем таймер 2 и 7 для прерывания ADC и подсчета времени. Увеличена скорость прерывания канала по средствам установки реакции по спадающему и нарастающему фронту сигнала одновременно(ADC_ExternalTrigConvEdge_RisingFalling) для обработки с помощью DMA каналов АЦП и чтобы за время прерывания таймера 2, успел заполниться класс скользящей медианы.
+******************************************************************************/
 void TimerInit()
 {
   TIM_DeInit(TIM2);
@@ -243,9 +294,7 @@ void TimerInit()
   TIM_TimeBaseInitStruct.TIM_Period = 100;// 1 мс
   TIM_TimeBaseInit(TIM7, &TIM_TimeBaseInitStruct);
 
-  //////////////////////////////////////////////////////////////////////////////
-  //Настройка канала ОС2 необходима чтобы сканирование АЦП происходило по прерыванию
-  //Так же ненужна настройка самой ноги GPIOх
+  //Настройка канала ОС2 необходима чтобы сканирование АЦП происходило по прерыванию. Так же ненужна настройка самой ноги GPIOх
   TIM_SetCounter(TIM2, 0);
   TIM_OCInitTypeDef TIM_OCInitStruct;
   TIM_OCInitStruct.TIM_OCMode = TIM_OCMode_PWM1;
@@ -305,20 +354,20 @@ void CANInit()
 
   CAN_FilterInitTypeDef CAN_FilterInitStruct;//без настройки фильтра не работает прием
   CAN_SlaveStartBank(0);//необходимо так же задать номер фильтра, без него не принимает
-  //CAN_FilterInitStruct.CAN_FilterIdHigh         = 0x0011 << 5;
-  //CAN_FilterInitStruct.CAN_FilterIdLow          = 0x0010 << 5;
-  //CAN_FilterInitStruct.CAN_FilterMaskIdHigh     = 0x0007 << 5;
-  //CAN_FilterInitStruct.CAN_FilterMaskIdLow      = 0x0003 << 5;
+  CAN_FilterInitStruct.CAN_FilterIdHigh         = 0x0000 << 5;
+  CAN_FilterInitStruct.CAN_FilterIdLow          = 0x0000 << 5;
+  CAN_FilterInitStruct.CAN_FilterMaskIdHigh     = 0x0000 << 5;
+  CAN_FilterInitStruct.CAN_FilterMaskIdLow      = 0x0000 << 5;
   //CAN_FilterInitStruct.CAN_FilterMode           = CAN_FilterMode_IdList;
-  //CAN_FilterInitStruct.CAN_FilterScale          = CAN_FilterScale_16bit;
-  CAN_FilterInitStruct.CAN_FilterIdHigh         = 0x18FEEF00 >> 13;
-  CAN_FilterInitStruct.CAN_FilterIdLow          = 0x0FFFF & (0xEF000 >> 1);
-  CAN_FilterInitStruct.CAN_FilterMaskIdHigh     = 0x1FFFFF00 >> 13;
-  CAN_FilterInitStruct.CAN_FilterMaskIdLow      = 0x0FFFF & (0xFFFF0 >> 1);
+  CAN_FilterInitStruct.CAN_FilterScale          = CAN_FilterScale_16bit;
+  //CAN_FilterInitStruct.CAN_FilterIdHigh         = 0x18FEEF00 >> 13;
+  //CAN_FilterInitStruct.CAN_FilterIdLow          = 0x0FFFF & (0xEF000 >> 1);
+  //CAN_FilterInitStruct.CAN_FilterMaskIdHigh     = 0x1FFFFF00 >> 13;
+  //CAN_FilterInitStruct.CAN_FilterMaskIdLow      = 0x0FFFF & (0xFFFF0 >> 1);
   CAN_FilterInitStruct.CAN_FilterFIFOAssignment = CAN_Filter_FIFO0;
   CAN_FilterInitStruct.CAN_FilterNumber         = 0;
   CAN_FilterInitStruct.CAN_FilterMode           = CAN_FilterMode_IdMask;
-  CAN_FilterInitStruct.CAN_FilterScale          = CAN_FilterScale_32bit;
+  //CAN_FilterInitStruct.CAN_FilterScale          = CAN_FilterScale_32bit;
   CAN_FilterInitStruct.CAN_FilterActivation     = ENABLE;
   CAN_FilterInit(&CAN_FilterInitStruct);
   
@@ -428,23 +477,14 @@ void TIM_PWMInit()
 
 extern "C"
 {
-  /*Без обработчика прерывания не работает DMA. Обработчик прерывания привязан ко
-  второму каналу таймера 2. Закидываем принятые значения(РУД, Тормоз, Диселератор,
-  Влево, Вправо, Температура) с АЦП в фильтр скользящей медианы.*/
+  /*Без обработчика прерывания не работает DMA. Обработчик прерывания привязан ко второму каналу таймера 2. Закидываем принятые значения(РУД, Тормоз, Диселератор, Влево, Вправо, Температура) с АЦП в фильтр скользящей медианы.*/
   void DMA2_Stream0_IRQHandler()
   {
     if(DMA_GetITStatus(DMA2_Stream0, DMA_IT_TCIF0))
     {
       DMA_ClearITPendingBit(DMA2_Stream0, DMA_IT_TCIF0);
       analog.Set(ADCValue);
-      
-      if((analog.SMbrake.get() * 100 / 4095) <= 5)
-        kpp.SetAllOt();//здесь неприятный мне момент, когда педаль отпущена постоянно будет записываться в регистры
-      else if((analog.SMbrake.get() * 100 / 4095) >= 95)
-        kpp.ResetAllOt();
-      else
-        kpp.Brake(analog.SMbrake.get() * 100 / 4095);
-    }//управление клапанами ОТ идет с двух мест, надо поставить приоритет!!!
+    }
   }
   
   void DMA2_Stream2_IRQHandler()
@@ -455,9 +495,9 @@ extern "C"
     }
   }
   
-  /*****************************************************************************
+  /****************************************************************************
   Прерывание по таймеру 2 - 20 мс
-  *****************************************************************************/
+  ****************************************************************************/
   void TIM2_IRQHandler()
   {
     if(TIM_GetITStatus(TIM2, TIM_IT_Update))
@@ -466,10 +506,9 @@ extern "C"
     }
   }
   
-  /*****************************************************************************
-  Прерывание по таймеру 7 - 1 мс. Ведем отсчет времени, отсылаем в CAN аналоговые
-  и дискретные сигналы.
-  *****************************************************************************/
+  /****************************************************************************
+  Прерывание по таймеру 7 - 1 мс. Ведем отсчет времени, отсылаем в CAN аналоговые и дискретные сигналы.
+  ****************************************************************************/
   void TIM7_IRQHandler()
   {
     if(TIM_GetITStatus(TIM7, TIM_IT_Update))
@@ -477,7 +516,7 @@ extern "C"
       TIM_ClearITPendingBit(TIM7, TIM_IT_Update);
       ++time_ms;
       
-      if(!(time_ms % 250))
+      if(!(time_ms % 50))
       {
         CanTxMsg TxMessage;
         TxMessage.RTR   = CAN_RTR_DATA;
@@ -496,18 +535,51 @@ extern "C"
         
         analog.SendMsg(digit);
       }
+      else if(!(time_ms % 99))
+      {
+        BrakeParking();
+        SetClutch();
+
+        if(digit.direct_ch)
+        {
+          uint16_t rpm = eng.GetRpm();
+
+          if(!digit.direction)//'N'
+            kpp.ResetAllDirect();
+          else if(digit.direction == 1)//'F'
+            kpp.ResetDirection(2);//'R'
+          else if(digit.direction == 2)//'R'
+            kpp.ResetDirection(1);//'F'
+
+          if(digit.direction)
+          {
+            if(rpm > 810)
+            {
+              eng.SetRpm(800);
+              eng.RequestRpm();
+            }
+            kpp.SetDirection(digit.direction);
+            eng.SetRpm(rpm);
+            eng.RequestRpm();
+          }
+        }
+          
+        if(!digit.direction && digit.parking && eng.GetRpm() < 350)
+          digit.start_eng = true;
+        else
+          digit.start_eng = false;
+      }
     }
   }
   
-  /*****************************************************************************
-  Принимает от контроллера АСУ2.0 дискретные сигналы с органов управления, также
-  обрабатываем сообщение с ДВС об оборотах.
-  *****************************************************************************/
-  void CAN2_RX0_IRQHandler(void)
+  /****************************************************************************
+  Принимает от контроллера АСУ2.0 дискретные сигналы с органов управления, также обрабатываем сообщение с ДВС об оборотах.
+  ****************************************************************************/
+  void CAN2_RX0_IRQHandler()
   {
-    CanRxMsg RxMessage;
     if (CAN_GetITStatus(CAN2, CAN_IT_FMP0))
     {
+      CanRxMsg RxMessage;
       CAN_ClearITPendingBit(CAN2, CAN_IT_FMP0);
       CAN_Receive(CAN2, CAN_FIFO0, &RxMessage);
       
@@ -515,56 +587,14 @@ extern "C"
         switch(RxMessage.StdId)
         {
         case 0x004:
-          digit.Set(RxMessage.Data[0]);
-          
-          if(digit.parking && digit.parking_ch)
-          {
-            kpp.ResetAllValve();//управление клапанами ОТ идет с двух мест
-            digit.clutch = 0;
-          }
-          else if(!digit.parking && digit.parking_ch)
-          {
-            kpp.SetAllOt();
-            kpp.SetAllBf();
-            digit.clutch    = 1;
-            digit.clutch_ch = true;
-          }
-          
-          if(digit.clutch_ch)
-          {
-            if(digit.clutch_state == 1)//'+'
-              kpp.ResetClutch(digit.clutch - 1);
-            else if(digit.clutch_state == 2)//'-'
-              kpp.ResetClutch(digit.clutch + 1);
-            kpp.SetClutch(digit.clutch);
-          }
-          
-          if(digit.direct_ch)
-          {
-            uint16_t rpm = eng.GetRpm();
-            if(!digit.old_direct)//ошибка инверсия не нужна
-              kpp.ResetDirection(digit.old_direct);
-            if(!digit.direction)//ошбика инверсия не нужна
-            {
-              if(rpm > 810)
-                eng.RequestRpm(800);
-              kpp.SetDirection(digit.direction);
-              eng.RequestRpm(rpm);
-            }
-          }
-          
-          if(!digit.direction && digit.parking && eng.GetRpm() < 350)
-            digit.start_eng = true;
-          else
-            digit.start_eng = false;
-      
+          digit.Set((RxMessage.Data[1] << 8) | RxMessage.Data[0]);
           break;
         }
       else
         switch(RxMessage.ExtId)
         {
         case 0x0CF00400:
-          eng.SetRpm(RxMessage.Data[4] * 256 + RxMessage.Data[3]);
+          eng.SetRpm((RxMessage.Data[4] * 256 + RxMessage.Data[3]) / 8);
           break;
         }
     }
