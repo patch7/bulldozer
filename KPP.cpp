@@ -1,33 +1,25 @@
 #include "KPP.h"
 
-void DigitalSignals::Set(const uint16_t d)
+void KPP::DigitalSet(const uint16_t data)
 {
-  if(parking != (0x0003 & (d >> 4)))
+  if(parking != (0x0003 & (data >> 4)))
     parking_ch = true;
   else
     parking_ch = false;
-  
-  direction    = 0x0003 & d;
-  clutch_state = 0x0003 & (d >> 2);
-  parking      = 0x0003 & (d >> 4);
-  auto_reverse = 0x0003 & (d >> 6);
-  oil_filter   = 0x0001 & (d >> 8);
-  d_generator  = 0x0001 & (d >> 9);
 
-  if(old_direct != direction)
-  {
+  if(direction != (0x0003 & data))
     direct_ch  = true;
-    old_direct = direction;
-  }
   else
-    direct_ch = false;
+    direct_ch  = false;
+  
+  direction    = 0x0003 & data;
+  clutch_state = 0x0003 & (data >> 2);
+  parking      = 0x0003 & (data >> 4);
+  auto_reverse = 0x0003 & (data >> 6);
+  oil_filter   = 0x0001 & (data >> 8);
+  d_generator  = 0x0001 & (data >> 9);
 
-  if(clutch_state == 0)
-    clutch_ch = false;
-  else
-    clutch_ch = true;
-
-  CanTxMsg TxMessage;
+  //debug
   TxMessage.RTR     = CAN_RTR_DATA;
   TxMessage.IDE     = CAN_ID_STD;
   TxMessage.StdId   = 0x010;
@@ -42,27 +34,7 @@ void DigitalSignals::Set(const uint16_t d)
   TxMessage.Data[7] = clutch;
   CAN_Transmit(CAN2, &TxMessage);
 }
-
-void AnalogSignals::SendMsg(const DigitalSignals d)
-{
-  CanTxMsg TxMessage;
-  
-  TxMessage.RTR   = CAN_RTR_DATA;
-  TxMessage.IDE   = CAN_ID_STD;
-  
-  TxMessage.StdId   = 0x002;
-  TxMessage.DLC     = 7;
-  TxMessage.Data[0] = SMleft.get()     * 100 / 4095;
-  TxMessage.Data[1] = SMright.get()    * 100 / 4095;
-  TxMessage.Data[2] = SMthrottle.get() * 100 / 4095;
-  TxMessage.Data[3] = SMbrake.get()    * 100 / 4095;
-  TxMessage.Data[4] = SMdeceler.get()  * 100 / 4095;
-  TxMessage.Data[5] = SMtemp.get()     * 100 / 4095;
-  TxMessage.Data[6] = (uint8_t)(d.clutch << 1) | d.start_eng;
-  CAN_Transmit(CAN2, &TxMessage);
-}
-
-void AnalogSignals::Set(const uint16_t *data)
+void KPP::AnalogSet(const uint16_t* data)
 {
   SMleft.push(data[0]);
   SMright.push(data[1]);
@@ -71,13 +43,51 @@ void AnalogSignals::Set(const uint16_t *data)
   SMdeceler.push(data[4]);
   SMtemp.push(data[5]);
 }
-
-void KPP::Brake(const uint8_t d) const
+void KPP::SendMsg()
 {
-   TIM_SetCompare1(TIM4, 500 - d * 5);//500 - d * 500 / 100  OTл
-   TIM_SetCompare2(TIM4, 500 - d * 5);//500 - d * 500 / 100  ОТп
+  TxMessage.RTR     = CAN_RTR_DATA;
+  TxMessage.IDE     = CAN_ID_STD;
+  TxMessage.StdId   = 0x002;
+  TxMessage.DLC     = 7;
+  TxMessage.Data[0] = SMleft.get()     * 100 / 4095;
+  TxMessage.Data[1] = SMright.get()    * 100 / 4095;
+  TxMessage.Data[2] = SMthrottle.get() * 100 / 4095;
+  TxMessage.Data[3] = SMbrake.get()    * 100 / 4095;
+  TxMessage.Data[4] = SMdeceler.get()  * 100 / 4095;
+  TxMessage.Data[5] = SMtemp.get()     * 100 / 4095;
+  TxMessage.Data[6] = (uint8_t)(clutch << 1) | start_eng;
+  CAN_Transmit(CAN2, &TxMessage);
 }
+void KPP::Brake(const uint8_t data) const
+{
+   TIM_SetCompare1(TIM4, 500 - data * 5);//500 - data * 500 / 100  OTл
+   TIM_SetCompare2(TIM4, 500 - data * 5);//500 - data * 500 / 100  ОТп
+}
+void KPP::BrakeParking(const uint16_t rpm)
+{
+  if(parking && parking_ch)
+  {
+    ResetAllValve();
+    clutch = 0;
+  }
+  else if(!parking)
+  {
+    if(SMbrake.get() * 100 / 4095 <= 5)
+      SetAllOt();
+    else if(SMbrake.get() * 100 / 4095 >= 95)
+      ResetAllOt();
+    else
+      Brake(SMbrake.get() * 100 / 4095);
 
+    if(parking_ch)
+    {
+      SetAllBf();
+      //ResetAllClutch();
+      if(rpm > 350)
+        SetClutch(clutch = 1);
+    }
+  }
+}
 void KPP::ResetAllValve() const
 {
   ResetOtL();
@@ -90,7 +100,6 @@ void KPP::ResetAllValve() const
   ResetForward();
   ResetReverse();
 }
-
 void KPP::SetAllOt() const  
 {
   SetOtL(); 
@@ -112,57 +121,98 @@ void KPP::ResetAllClutch() const
   ResetSecond();
   ResetThird();
 }
-
-void KPP::SetClutch(const uint8_t d) const
+void KPP::SetClutch(const uint16_t rpm)
 {
-  switch(d)
+  if(clutch_state == PLUS && clutch < 3 && rpm > 350)//'+'
   {
-  case 1:
-    SetFirst();
+    OffClutch();
+    ++clutch;
+    OnClutch();
+  }
+  else if(clutch_state == MINUS && clutch > 1 && rpm > 350)//'-'
+  {
+    OffClutch();
+    --clutch;
+    OnClutch();
+  }
+  //debug
+  TxMessage.RTR     = CAN_RTR_DATA;
+  TxMessage.IDE     = CAN_ID_STD;
+  TxMessage.StdId   = 0x011;
+  TxMessage.DLC     = 1;
+  TxMessage.Data[0] = clutch;
+  CAN_Transmit(CAN2, &TxMessage);
+}
+void KPP::OnClutch() const
+{
+  switch(clutch)
+  {
+  case 1: SetFirst();
     break;
-  case 2:
-    SetSecond();
+  case 2: SetSecond();
     break;
-  case 3:
-    SetThird();
+  case 3: SetThird();
     break;
   }
 }
-
-void KPP::ResetClutch(const uint8_t d) const
+void KPP::OffClutch() const
 {
-  switch(d)
+  switch(clutch)
   {
-  case 1:
-    ResetFirst();
+  case 1: ResetFirst();
     break;
-  case 2:
-    ResetSecond();
+  case 2: ResetSecond();
     break;
-  case 3:
-    ResetThird();
+  case 3: ResetThird();
     break;
   }
 }
-
-void KPP::SetDirection(const uint8_t d) const
+void KPP::SetDirection(const uint8_t dir) const
 {
-  if(d == 1)
+  if(dir == F)
     SetForward();
-  else if(d == 2)
+  else if(dir == R)
     SetReverse();
 }
-
-void KPP::ResetDirection(const uint8_t d) const
+void KPP::ResetDirection(const uint8_t dir) const
 {
-  if(d == 1)
+  if(dir == F)
     ResetForward();
-  else if(d == 2)
+  else if(dir == R)
     ResetReverse();
 }
-
 void KPP::ResetAllDirect() const
 {
   ResetForward();
   ResetReverse();
+}
+void KPP::SwitchDirection(Engine& eng)
+{
+  if(direct_ch)
+  {
+    if(direction == N)
+      ResetAllDirect();
+    else if(direction == F)
+      ResetDirection(R);
+    else if(direction == R)
+      ResetDirection(F);
+
+    if(direction)
+    {
+      uint16_t rpm = eng.GetRpm();
+      if(rpm > 810)
+      {
+        eng.SetRpm(800);
+        eng.RequestRpm();
+      }
+      SetDirection(direction);
+      eng.SetRpm(rpm);
+      eng.RequestRpm();
+    }
+  }
+          
+  if(direction == N && parking == ON && eng.GetRpm() < 350)
+    start_eng = true;
+  else
+    start_eng = false;
 }

@@ -6,39 +6,39 @@
 #include "sliding_median.h"
 #include "engine.h"
 
-struct DigitalSignals
-{
-  uint8_t direction    : 2;//00 - N,    01 - F,   10 - R,    11 - Not available
-  uint8_t clutch_state : 2;//00 - none, 01 - '+', 10 - '-',  11 - Not available
-  uint8_t parking      : 2;//00 - off,  01 - on,  10 - res,  11 - Don't care
-  uint8_t auto_reverse : 2;//00 - off,  01 - on,  10 - res,  11 - Don't care
-  uint8_t clutch       : 2;//00 - 0,    01 - 1,   10 - 2,    11 - 3
-  uint8_t old_direct   : 2;//00 - N,    01 - F,   10 - R,    11 - Not available
-  
-  uint8_t oil_filter   : 1;//true/false
-  uint8_t d_generator  : 1;//true/false
-  //uint8_t calib_valves : 1;//true/false
+const static uint8_t N = 0;
+const static uint8_t F = 1;
+const static uint8_t R = 2;
 
-  uint8_t start_eng    : 1;//true/false
-  uint8_t parking_ch   : 1;//true/false
-  uint8_t clutch_ch    : 1;//true/false
-  uint8_t direct_ch    : 1;//true/false
+const static uint8_t PLUS  = 1;
+const static uint8_t MINUS = 2;
 
-  void Set(const uint16_t);
-  DigitalSignals() : direction(0), clutch_state(0), parking(0), auto_reverse(0), clutch(0), old_direct(0), /*calib_valves(0), */oil_filter(0), d_generator(0), start_eng(0), parking_ch(0), clutch_ch(0), direct_ch(0) {}
-};
-
-struct AnalogSignals
-{
-  SlidingMedian SMleft, SMright, SMthrottle, SMbrake, SMdeceler, SMtemp;
-  void SendMsg(const DigitalSignals);
-  void Set(const uint16_t*);
-};
+const static uint8_t OFF = 0;
+const static uint8_t ON  = 1;
 
 class KPP
 {
 public:
-  KPP()                       = default;
+  KPP(const uint8_t size_filter = 9) : 
+  SMleft(size_filter),
+  SMright(size_filter),
+  SMthrottle(size_filter),
+  SMbrake(size_filter),
+  SMdeceler(size_filter),
+  SMtemp(size_filter),
+  direction(0),
+  clutch_state(0),
+  parking(1),
+  auto_reverse(0),
+  clutch(0),
+  old_direct(0),
+  oil_filter(0),
+  d_generator(0),
+  start_eng(0),
+  parking_ch(0),
+  clutch_ch(0),
+  direct_ch(0)
+  {}
   KPP(const KPP&)             = delete;
   KPP(KPP&&)                  = delete;
   KPP& operator= (const KPP&) = delete;
@@ -51,13 +51,20 @@ public:
   void ResetAllValve()               const;
   void SetAllBf()                    const;
   void ResetAllClutch()              const;
-  void SetClutch(const uint8_t)      const;
-  void ResetClutch(const uint8_t)    const;
   void SetDirection(const uint8_t)   const;
   void ResetDirection(const uint8_t) const;
   void ResetAllDirect()              const;
+
+  void SwitchDirection(Engine&);
+  void BrakeParking(const uint16_t);
+  void SetClutch(const uint16_t);
+  void DigitalSet(const uint16_t);
+  void AnalogSet(const uint16_t*);
+  void SendMsg();
 private:
-  //void SetClutch(const uint8_t, const uint8_t) const;
+  void OnClutch()     const;
+  void OffClutch()    const;
+
   void ResetOtL()     const;
   void ResetOtR()     const;
   void ResetFirst()   const;
@@ -65,7 +72,6 @@ private:
   void ResetThird()   const;
   void ResetForward() const;
   void ResetReverse() const;
-  
   //особой необходимости в этих методах нет, используются только по 1 разу.
   void ResetBfL()     const;
   void ResetBfR()     const;
@@ -78,8 +84,25 @@ private:
   void SetThird()     const;
   void SetForward()   const;
   void SetReverse()   const;
-  uint8_t clutch = 0;
-  uint8_t direct = 0;
+
+  CanTxMsg TxMessage;
+
+  SlidingMedian SMleft, SMright, SMthrottle, SMbrake, SMdeceler, SMtemp;
+
+  uint8_t direction    : 2;//00 - N,    01 - F,   10 - R,    11 - Not available
+  uint8_t clutch_state : 2;//00 - none, 01 - '+', 10 - '-',  11 - Not available
+  uint8_t parking      : 2;//00 - off,  01 - on,  10 - res,  11 - Don't care
+  uint8_t auto_reverse : 2;//00 - off,  01 - on,  10 - res,  11 - Don't care
+  uint8_t clutch       : 2;//00 - 0,    01 - 1,   10 - 2,    11 - 3
+  uint8_t old_direct   : 2;//00 - N,    01 - F,   10 - R,    11 - Not available
+  
+  uint8_t oil_filter   : 1;//true/false
+  uint8_t d_generator  : 1;//true/false
+
+  uint8_t start_eng    : 1;//true/false
+  uint8_t parking_ch   : 1;//true/false
+  uint8_t clutch_ch    : 1;//true/false
+  uint8_t direct_ch    : 1;//true/false
 };
 
 //inline методы должны быть включены в каждую трансляцию, так что лучше их определять в заголовке.
