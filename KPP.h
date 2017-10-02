@@ -14,16 +14,18 @@ struct DigitalSignals
   uint8_t auto_reverse : 2;//00 - off,  01 - on,  10 - res,  11 - Don't care
   uint8_t clutch       : 2;//00 - 0,    01 - 1,   10 - 2,    11 - 3
   uint8_t old_direct   : 2;//00 - N,    01 - F,   10 - R,    11 - Not available
+  
+  uint8_t oil_filter   : 1;//true/false
+  uint8_t d_generator  : 1;//true/false
+  //uint8_t calib_valves : 1;//true/false
+
   uint8_t start_eng    : 1;//true/false
   uint8_t parking_ch   : 1;//true/false
   uint8_t clutch_ch    : 1;//true/false
   uint8_t direct_ch    : 1;//true/false
-  //uint8_t KPPState     : 2;//00 - manual, 01 - auto low, 10 - auto high/low, 11 - Not available
-  //uint8_t hold_KPP     : 2;//00 - off,    01 - on,       10 - reserved,      11 - Don't care
-  //uint8_t load_condit  : 2;//00 - off,    01 - on,       10 - reserved,      11 - Don't care
-  void Set(const uint8_t);
-  DigitalSignals() : clutch_state(0), old_direct(0), direction(0), direct_ch(0), parking(0),
-                     auto_reverse(0), parking_ch(0), start_eng(0), clutch_ch(0), clutch(0) {}
+
+  void Set(const uint16_t);
+  DigitalSignals() : direction(0), clutch_state(0), parking(0), auto_reverse(0), clutch(0), old_direct(0), /*calib_valves(0), */oil_filter(0), d_generator(0), start_eng(0), parking_ch(0), clutch_ch(0), direct_ch(0) {}
 };
 
 struct AnalogSignals
@@ -48,10 +50,12 @@ public:
   void Brake(const uint8_t)          const;
   void ResetAllValve()               const;
   void SetAllBf()                    const;
+  void ResetAllClutch()              const;
   void SetClutch(const uint8_t)      const;
   void ResetClutch(const uint8_t)    const;
   void SetDirection(const uint8_t)   const;
   void ResetDirection(const uint8_t) const;
+  void ResetAllDirect()              const;
 private:
   //void SetClutch(const uint8_t, const uint8_t) const;
   void ResetOtL()     const;
@@ -74,6 +78,8 @@ private:
   void SetThird()     const;
   void SetForward()   const;
   void SetReverse()   const;
+  uint8_t clutch = 0;
+  uint8_t direct = 0;
 };
 
 //inline методы должны быть включены в каждую трансляцию, так что лучше их определять в заголовке.
