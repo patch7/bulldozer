@@ -1,6 +1,6 @@
 #include "engine.h"
 
-void Engine::RequestRpm(const uint16_t x) const
+void Engine::RequestRpm() const
 {
   CanTxMsg TxMessage;
 
@@ -12,8 +12,8 @@ void Engine::RequestRpm(const uint16_t x) const
   TxMessage.Data[0] = 0;
   TxMessage.Data[1] = 0;
   TxMessage.Data[2] = 0;
-  TxMessage.Data[3] = x * resol % 256;
-  TxMessage.Data[4] = x * resol / 256;
+  TxMessage.Data[3] = rpm * resol % 256;
+  TxMessage.Data[4] = rpm * resol / 256;
   TxMessage.Data[5] = 0;
   TxMessage.Data[6] = 0;
   TxMessage.Data[7] = 0;
