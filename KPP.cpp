@@ -60,18 +60,18 @@ void KPP::SendMsg()
 }
 void KPP::Brake(const uint8_t data) const
 {
-   TIM_SetCompare1(TIM4, 500 - data * 5);//500 - data * 500 / 100  OTл
-   TIM_SetCompare2(TIM4, 500 - data * 5);//500 - data * 500 / 100  ОТп
+  PropSetOtL(data);
+  PropSetOtR(data);
 }
 void KPP::BrakeParking(const uint16_t rpm)
 {
-  if(parking && parking_ch)
+  if(parking == ON && parking_ch)
   {
     ResetAllValve();
     clutch = 0;
   }
-  else if(!parking)
-  {
+  else if(parking == OFF)
+  {//возможно торможение джойстиками надо будет перенести к поворотам!!!
     if(SMbrake.get() * 100 / 4095 <= 5)
       SetAllOt();
     else if(SMbrake.get() * 100 / 4095 >= 95)
@@ -123,17 +123,19 @@ void KPP::ResetAllClutch() const
 }
 void KPP::SetClutch(const uint16_t rpm)
 {
-  if(clutch_state == PLUS && clutch < 3 && rpm > 350)//'+'
+  if(parking == OFF && clutch_state == PLUS && clutch < 3 && rpm > 350)
   {
     OffClutch();
     ++clutch;
     OnClutch();
+    clutch_state = false;
   }
-  else if(clutch_state == MINUS && clutch > 1 && rpm > 350)//'-'
+  else if(parking == OFF && clutch_state == MINUS && clutch > 1 && rpm > 350)
   {
     OffClutch();
     --clutch;
     OnClutch();
+    clutch_state = false;
   }
   //debug
   TxMessage.RTR     = CAN_RTR_DATA;
@@ -188,7 +190,7 @@ void KPP::ResetAllDirect() const
 }
 void KPP::SwitchDirection(Engine& eng)
 {
-  if(direct_ch)
+  if(direct_ch && parking == OFF)
   {
     if(direction == N)
       ResetAllDirect();
@@ -215,4 +217,41 @@ void KPP::SwitchDirection(Engine& eng)
     start_eng = true;
   else
     start_eng = false;
+}
+void KPP::BrakeRotate()
+{
+  uint8_t left  = SMleft.get()  * 100 / 4095;
+  uint8_t right = SMright.get() * 100 / 4095;
+  uint8_t brake = SMbrake.get() * 100 / 4095;
+
+  if(parking == OFF)
+  {
+    if(left > 5 && left < 95)
+    {
+      ResetBfL();
+      PropSetOtL(left);
+      PropBrake(brake);
+    }
+    else if(left >= 95)
+    {
+      ResetBfL();
+      PropSetOtL(100);
+      PropBrake(brake);
+    }
+    else if(brake <= 5)
+      SetAllOt();
+    else if(brake > 5 && brake < 95)
+      Brake(brake);
+    else if(brake >= 95)
+      ResetAllOt();
+  }
+}
+void KPP::PropBrake(const uint8_t brake) const
+{
+  if(brake <= 5)
+    PropSetOtR(0);
+  else if(brake > 5 && brake < 95)
+    PropSetOtR(brake);
+  else if(brake >= 95)
+    PropSetOtR(100);
 }

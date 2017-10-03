@@ -16,6 +16,7 @@ const static uint8_t MINUS = 2;
 const static uint8_t OFF = 0;
 const static uint8_t ON  = 1;
 
+//все методы класса необходимо пересмотреть после создания общей структуры!!!
 class KPP
 {
 public:
@@ -55,13 +56,18 @@ public:
   void ResetDirection(const uint8_t) const;
   void ResetAllDirect()              const;
 
+  void BrakeRotate();
   void SwitchDirection(Engine&);
-  void BrakeParking(const uint16_t);
+  void BrakeParking(const uint16_t);//будет только ручник, тормоз в BrakeRotate
   void SetClutch(const uint16_t);
   void DigitalSet(const uint16_t);
   void AnalogSet(const uint16_t*);
   void SendMsg();
 private:
+  void PropBrake(const uint8_t)  const;
+  void PropSetOtL(const uint8_t) const;
+  void PropSetOtR(const uint8_t) const;
+
   void OnClutch()     const;
   void OffClutch()    const;
 
@@ -134,4 +140,12 @@ inline void KPP::ResetForward() const { TIM_SetCompare4(TIM3, 0); }
 inline void KPP::SetReverse() const   { TIM_SetCompare2(TIM1, 500); }
 inline void KPP::ResetReverse() const { TIM_SetCompare2(TIM1, 0); }
 
+inline void KPP::PropSetOtL(const uint8_t data) const
+{
+  TIM_SetCompare1(TIM4, 500 - data * 5);//500 - data * 500 / 100
+}
+inline void KPP::PropSetOtR(const uint8_t data) const
+{
+  TIM_SetCompare2(TIM4, 500 - data * 5);//500 - data * 500 / 100
+}
 #endif /* __KPP */
