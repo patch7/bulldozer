@@ -63,28 +63,20 @@ void KPP::Brake(const uint8_t data) const
   PropSetOtL(data);
   PropSetOtR(data);
 }
-void KPP::BrakeParking(const uint16_t rpm)
+void KPP::Parking(const uint16_t rpm)
 {
   if(parking == ON && parking_ch)
   {
     ResetAllValve();
     clutch = 0;
   }
-  else if(parking == OFF)
-  {//возможно торможение джойстиками надо будет перенести к поворотам!!!
-    if(SMbrake.get() * 100 / 4095 <= 5)
-      SetAllOt();
-    else if(SMbrake.get() * 100 / 4095 >= 95)
-      ResetAllOt();
-    else
-      Brake(SMbrake.get() * 100 / 4095);
-
-    if(parking_ch)
+  else if(parking == OFF && parking_ch)
+  {
+    SetAllBf();
+    if(rpm > 350)
     {
-      SetAllBf();
-      //ResetAllClutch();
-      if(rpm > 350)
-        SetClutch(clutch = 1);
+      clutch = 1;
+      OnClutch();
     }
   }
 }
@@ -220,33 +212,99 @@ void KPP::SwitchDirection(Engine& eng)
 }
 void KPP::BrakeRotate()
 {
+  static uint8_t old_left  = 0;
+  static uint8_t old_right = 0;
+
+  bool left_up    = false;
+  bool left_down  = false;
+  bool right_up   = false;
+  bool right_down = false;
+
   uint8_t left  = SMleft.get()  * 100 / 4095;
   uint8_t right = SMright.get() * 100 / 4095;
   uint8_t brake = SMbrake.get() * 100 / 4095;
 
+  if(old_left + 1 < left)//левый джойстик
+  {// +1 для избежания постоянного переключения из-за дрожания руки.
+    left_up   = true;
+    left_down = false;
+  }
+  else if(old_left - 1 > left)
+  {// -1 для избежания постоянного переключения из-за дрожания руки.
+    left_down = true;
+    left_up   = false;
+  }
+
+  if(old_right + 1 < right)//правый джойстик
+  {// +1 для избежания постоянного переключения из-за дрожания руки.
+    right_up   = true;
+    right_down = false;
+  }
+  else if(old_right - 1 > right)
+  {// -1 для избежания постоянного переключения из-за дрожания руки.
+    right_down = true;
+    right_up   = false;
+  }
+
+  old_left  = left;
+  old_right = right;
+
   if(parking == OFF)
   {
-    if(left > 5 && left < 95)
+    if(left <= 5 && right <= 5)
+    {
+      if(brake <= 5)
+        SetAllOt();
+      else if(brake > 5 && brake < 95)
+        Brake(brake);
+      else if(brake >= 95)
+        ResetAllOt();
+    }
+
+    if(left_up && left > 5)
     {
       ResetBfL();
-      PropSetOtL(left);
-      PropBrake(brake);
+      if(brake < left && left < 95)//приоритет у ОУ, который сильнее тормозит
+        PropSetOtL(left);
+      else if(brake > left && left < 95)
+        PropSetOtL(brake);
+      else if(left >= 95)
+        PropSetOtL(100);
+      PropBrakeR(brake);
     }
-    else if(left >= 95)
+    else if(left_down && left > 5)
     {
-      ResetBfL();
-      PropSetOtL(100);
-      PropBrake(brake);
+      if(brake > left)
+        PropSetOtL(brake);
+      else
+        SetOtL();
+      SetBfL();//должно изменяться пропорционально по графику включения.
+      PropBrakeR(brake);
     }
-    else if(brake <= 5)
-      SetAllOt();
-    else if(brake > 5 && brake < 95)
-      Brake(brake);
-    else if(brake >= 95)
-      ResetAllOt();
+
+    if(right_up && right > 5)
+    {
+      ResetBfR();
+      if(brake < right && right < 95)
+        PropSetOtR(right);
+      else if(brake > right && right < 95)
+        PropSetOtR(brake);
+      else if(right >= 95)
+        PropSetOtR(100);
+      PropBrakeL(brake);
+    }
+    else if(right_down && right > 5)
+    {
+      if(brake > right)
+        PropSetOtR(brake);
+      else
+        SetOtR();
+      SetBfR();//должно изменяться пропорционально по графику включения.
+      PropBrakeL(brake);
+    }
   }
 }
-void KPP::PropBrake(const uint8_t brake) const
+void KPP::PropBrakeR(const uint8_t brake) const
 {
   if(brake <= 5)
     PropSetOtR(0);
@@ -254,4 +312,13 @@ void KPP::PropBrake(const uint8_t brake) const
     PropSetOtR(brake);
   else if(brake >= 95)
     PropSetOtR(100);
+}
+void KPP::PropBrakeL(const uint8_t brake) const
+{
+  if(brake <= 5)
+    PropSetOtL(0);
+  else if(brake > 5 && brake < 95)
+    PropSetOtL(brake);
+  else if(brake >= 95)
+    PropSetOtL(100);
 }

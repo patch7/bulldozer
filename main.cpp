@@ -414,8 +414,7 @@ extern "C"
     }
   }
   
-  //Прерывание по таймеру 2 - 20 мс
-  void TIM2_IRQHandler()
+  void TIM2_IRQHandler()//Прерывание по таймеру 2 - 20 мс
   {
     if(TIM_GetITStatus(TIM2, TIM_IT_Update))
     {
@@ -423,7 +422,7 @@ extern "C"
     }
   }
   
-  //Прерывание по таймеру 7 - 1 мс. Ведем отсчет времени, отсылаем в CAN аналоговые и дискретные сигналы.
+  //Прерывание по TIM7-1 мс. Ведем отсчет времени, шлем в CAN аналоговые и дискретные сигналы.
   void TIM7_IRQHandler()
   {
     if(TIM_GetITStatus(TIM7, TIM_IT_Update))
@@ -451,9 +450,10 @@ extern "C"
       }
       else if(!(time_ms % 99))
       {
-        kpp.BrakeParking(eng.GetRpm());
+        kpp.Parking(eng.GetRpm());
         kpp.SetClutch(eng.GetRpm());
         kpp.SwitchDirection(eng);
+        kpp.BrakeRotate();
       }
     }
   }

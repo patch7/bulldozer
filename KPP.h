@@ -58,13 +58,14 @@ public:
 
   void BrakeRotate();
   void SwitchDirection(Engine&);
-  void BrakeParking(const uint16_t);//будет только ручник, тормоз в BrakeRotate
+  void Parking(const uint16_t);
   void SetClutch(const uint16_t);
   void DigitalSet(const uint16_t);
   void AnalogSet(const uint16_t*);
   void SendMsg();
 private:
-  void PropBrake(const uint8_t)  const;
+  void PropBrakeR(const uint8_t) const;
+  void PropBrakeL(const uint8_t) const;
   void PropSetOtL(const uint8_t) const;
   void PropSetOtR(const uint8_t) const;
 
