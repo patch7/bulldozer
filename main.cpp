@@ -38,10 +38,8 @@ void CANInit(void);
 void TIM_PWMInit(void);
 void TimerInit(void);
 
-DigitalSignals digit;
-AnalogSignals  analog;
-Engine         eng;
-KPP            kpp;
+Engine eng;
+KPP    kpp;
 
 void main()
 {
@@ -66,64 +64,6 @@ void main()
   while(true)
   {          
     __NOP();
-  }
-}
-
-void SetClutch()
-{
-  if(digit.clutch_ch && eng.GetRpm() > 350)
-  {
-    if(digit.clutch_state == 1 && digit.clutch < 3)//'+'
-    {
-      kpp.ResetClutch(digit.clutch);
-      kpp.SetClutch(++digit.clutch);
-    }
-    else if(digit.clutch_state == 2 && digit.clutch > 1)//'-'
-    {
-      kpp.ResetClutch(digit.clutch);
-      kpp.SetClutch(--digit.clutch);
-    }
-  }
-  CanTxMsg TxMessage;
-  TxMessage.RTR     = CAN_RTR_DATA;
-  TxMessage.IDE     = CAN_ID_STD;
-  TxMessage.StdId   = 0x011;
-  TxMessage.DLC     = 8;
-  TxMessage.Data[0] = 0;
-  TxMessage.Data[1] = 0;
-  TxMessage.Data[2] = 0;
-  TxMessage.Data[3] = 0;
-  TxMessage.Data[4] = 0;
-  TxMessage.Data[5] = 0;
-  TxMessage.Data[6] = 0;
-  TxMessage.Data[7] = digit.clutch;
-  CAN_Transmit(CAN2, &TxMessage);
-}
-
-void BrakeParking()
-{
-  if(digit.parking && digit.parking_ch)
-  {
-    kpp.ResetAllValve();
-    digit.clutch = 0;
-  }
-  else if(!digit.parking)
-  {
-    if((analog.SMbrake.get() * 100 / 4095) <= 5)
-      kpp.SetAllOt();
-    else if((analog.SMbrake.get() * 100 / 4095) >= 95)
-      kpp.ResetAllOt();
-    else
-      kpp.Brake(analog.SMbrake.get() * 100 / 4095);
-
-    if(digit.parking_ch)
-    {
-      kpp.SetAllBf();
-      //kpp.ResetAllClutch();
-
-      if(eng.GetRpm() > 350)
-        kpp.SetClutch(digit.clutch = 1);
-    }
   }
 }
 
@@ -379,26 +319,6 @@ void CANInit()
   NVIC_InitStruct.NVIC_IRQChannelCmd                = ENABLE;
   NVIC_Init(&NVIC_InitStruct);
 
-/*
-  настройка этих прерываний на данный момент ненужна!
-  NVIC_InitStruct.NVIC_IRQChannel                   = CAN2_RX1_IRQn;
-  NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 0;
-  NVIC_InitStruct.NVIC_IRQChannelSubPriority        = 2;
-  NVIC_InitStruct.NVIC_IRQChannelCmd                = ENABLE;
-  NVIC_Init(&NVIC_InitStruct);
- 
-  NVIC_InitStruct.NVIC_IRQChannel                   = CAN2_TX_IRQn;
-  NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 0;
-  NVIC_InitStruct.NVIC_IRQChannelSubPriority        = 3;
-  NVIC_InitStruct.NVIC_IRQChannelCmd                = ENABLE;
-  NVIC_Init(&NVIC_InitStruct);
-
-  Эти флаги на данный момент ненужны
-  CAN_ITConfig(CAN1, CAN_IT_FMP0, ENABLE);
-  CAN_ITConfig(CAN1, CAN_IT_FMP1, ENABLE);
-  CAN_ITConfig(CAN2, CAN_IT_FMP1, ENABLE);
-*/
-
   CAN_ITConfig(CAN2, CAN_IT_FMP0, ENABLE);
 }
 
@@ -483,10 +403,9 @@ extern "C"
     if(DMA_GetITStatus(DMA2_Stream0, DMA_IT_TCIF0))
     {
       DMA_ClearITPendingBit(DMA2_Stream0, DMA_IT_TCIF0);
-      analog.Set(ADCValue);
+      kpp.AnalogSet(ADCValue);
     }
   }
-  
   void DMA2_Stream2_IRQHandler()
   {
     if(DMA_GetITStatus(DMA2_Stream2, DMA_IT_TCIF2))
@@ -495,10 +414,7 @@ extern "C"
     }
   }
   
-  /****************************************************************************
-  Прерывание по таймеру 2 - 20 мс
-  ****************************************************************************/
-  void TIM2_IRQHandler()
+  void TIM2_IRQHandler()//Прерывание по таймеру 2 - 20 мс
   {
     if(TIM_GetITStatus(TIM2, TIM_IT_Update))
     {
@@ -506,9 +422,7 @@ extern "C"
     }
   }
   
-  /****************************************************************************
-  Прерывание по таймеру 7 - 1 мс. Ведем отсчет времени, отсылаем в CAN аналоговые и дискретные сигналы.
-  ****************************************************************************/
+  //Прерывание по TIM7-1 мс. Ведем отсчет времени, шлем в CAN аналоговые и дискретные сигналы.
   void TIM7_IRQHandler()
   {
     if(TIM_GetITStatus(TIM7, TIM_IT_Update))
@@ -516,6 +430,10 @@ extern "C"
       TIM_ClearITPendingBit(TIM7, TIM_IT_Update);
       ++time_ms;
       
+      if(!(time_ms % 10))
+      {
+        //управление клапанами в пропорциональном режиме
+      }
       if(!(time_ms % 50))
       {
         CanTxMsg TxMessage;
@@ -532,49 +450,19 @@ extern "C"
         TxMessage.Data[6] = BF_LEFT  * 100 / 4095;
         TxMessage.Data[7] = BF_RIGHT * 100 / 4095;
         CAN_Transmit(CAN2, &TxMessage);
-        
-        analog.SendMsg(digit);
+        kpp.SendMsg();
       }
-      else if(!(time_ms % 99))
+      if(!(time_ms % 99))
       {
-        BrakeParking();
-        SetClutch();
-
-        if(digit.direct_ch)
-        {
-          uint16_t rpm = eng.GetRpm();
-
-          if(!digit.direction)//'N'
-            kpp.ResetAllDirect();
-          else if(digit.direction == 1)//'F'
-            kpp.ResetDirection(2);//'R'
-          else if(digit.direction == 2)//'R'
-            kpp.ResetDirection(1);//'F'
-
-          if(digit.direction)
-          {
-            if(rpm > 810)
-            {
-              eng.SetRpm(800);
-              eng.RequestRpm();
-            }
-            kpp.SetDirection(digit.direction);
-            eng.SetRpm(rpm);
-            eng.RequestRpm();
-          }
-        }
-          
-        if(!digit.direction && digit.parking && eng.GetRpm() < 350)
-          digit.start_eng = true;
-        else
-          digit.start_eng = false;
+        kpp.Parking(eng.GetRpm());
+        kpp.SetClutch(eng.GetRpm());
+        kpp.SwitchDirection(eng);
+        kpp.BrakeRotate();
       }
     }
   }
   
-  /****************************************************************************
-  Принимает от контроллера АСУ2.0 дискретные сигналы с органов управления, также обрабатываем сообщение с ДВС об оборотах.
-  ****************************************************************************/
+  //Принимает от контроллера АСУ2.0 дискретные сигналы с органов управления, также обрабатываем сообщение с ДВС об оборотах.
   void CAN2_RX0_IRQHandler()
   {
     if (CAN_GetITStatus(CAN2, CAN_IT_FMP0))
@@ -587,7 +475,7 @@ extern "C"
         switch(RxMessage.StdId)
         {
         case 0x004:
-          digit.Set((RxMessage.Data[1] << 8) | RxMessage.Data[0]);
+          kpp.DigitalSet((RxMessage.Data[1] << 8) | RxMessage.Data[0]);
           break;
         }
       else
