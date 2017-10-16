@@ -72,6 +72,14 @@ private:
   void OnClutch()     const;
   void OffClutch()    const;
 
+  void RightUp(uint8_t, uint8_t, uint8_t, uint8_t) const;
+  void RightDown(uint8_t, uint8_t)                 const;
+  void LeftUp(uint8_t, uint8_t, uint8_t, uint8_t)  const;
+  void LeftDown(uint8_t, uint8_t)                  const;
+
+  void SetOtL(const uint8_t) const;
+  void SetOtR(const uint8_t) const;
+
   void ResetOtL()     const;
   void ResetOtR()     const;
   void ResetFirst()   const;
@@ -96,6 +104,12 @@ private:
 
   SlidingMedian SMleft, SMright, SMthrottle, SMbrake, SMdeceler, SMtemp;
 
+  uint16_t BfLtab[100] = {0};
+  uint16_t BfRtab[100] = {0};
+
+  uint8_t BfLcount = 0;
+  uint8_t BfRcount = 0;
+
   uint8_t direction    : 2;//00 - N,    01 - F,   10 - R,    11 - Not available
   uint8_t clutch_state : 2;//00 - none, 01 - '+', 10 - '-',  11 - Not available
   uint8_t parking      : 2;//00 - off,  01 - on,  10 - res,  11 - Don't care
@@ -110,43 +124,35 @@ private:
   uint8_t parking_ch   : 1;//true/false
   uint8_t clutch_ch    : 1;//true/false
   uint8_t direct_ch    : 1;//true/false
+
+  //нужно для пропорционального управления клапаном по графику!!!
+  //bool SetBfL = false;
+  //bool SetBfR = false;
 };
 
 //inline методы должны быть включены в каждую трансляцию, так что лучше их определять в заголовке.
-
-inline void KPP::SetOtL() const       { TIM_SetCompare1(TIM4, 500); }
-inline void KPP::ResetOtL() const     { TIM_SetCompare1(TIM4, 0); }
-
-inline void KPP::SetOtR() const       { TIM_SetCompare2(TIM4, 500); }
-inline void KPP::ResetOtR() const     { TIM_SetCompare2(TIM4, 0); }
+inline void KPP::ResetOtL() const     { TIM_SetCompare1(TIM4, 500); }
+inline void KPP::SetOtL() const       { TIM_SetCompare1(TIM4, 0); }
+inline void KPP::ResetOtR() const     { TIM_SetCompare2(TIM4, 500); }
+inline void KPP::SetOtR() const       { TIM_SetCompare2(TIM4, 0); }
+//500 - data * 500 / 100
+inline void KPP::SetOtL(const uint8_t d) const {TIM_SetCompare1(TIM4,500-d*5);}
+inline void KPP::SetOtR(const uint8_t d) const {TIM_SetCompare2(TIM4,500-d*5);}
 
 inline void KPP::SetBfL() const       { TIM_SetCompare3(TIM4, 500); }
 inline void KPP::ResetBfL() const     { TIM_SetCompare3(TIM4, 0); }
-
 inline void KPP::SetBfR() const       { TIM_SetCompare4(TIM4, 500); }
 inline void KPP::ResetBfR() const     { TIM_SetCompare4(TIM4, 0); }
 
 inline void KPP::SetFirst() const     { TIM_SetCompare1(TIM3, 500); }
 inline void KPP::ResetFirst() const   { TIM_SetCompare1(TIM3, 0); }
-
 inline void KPP::SetSecond() const    { TIM_SetCompare2(TIM3, 500); }
 inline void KPP::ResetSecond() const  { TIM_SetCompare2(TIM3, 0); }
-
 inline void KPP::SetThird() const     { TIM_SetCompare3(TIM3, 500); }
 inline void KPP::ResetThird() const   { TIM_SetCompare3(TIM3, 0); }
 
 inline void KPP::SetForward() const   { TIM_SetCompare4(TIM3, 500); }
 inline void KPP::ResetForward() const { TIM_SetCompare4(TIM3, 0); }
-
 inline void KPP::SetReverse() const   { TIM_SetCompare2(TIM1, 500); }
 inline void KPP::ResetReverse() const { TIM_SetCompare2(TIM1, 0); }
-
-inline void KPP::PropSetOtL(const uint8_t data) const
-{
-  TIM_SetCompare1(TIM4, 500 - data * 5);//500 - data * 500 / 100
-}
-inline void KPP::PropSetOtR(const uint8_t data) const
-{
-  TIM_SetCompare2(TIM4, 500 - data * 5);//500 - data * 500 / 100
-}
 #endif /* __KPP */

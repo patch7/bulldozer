@@ -58,11 +58,6 @@ void KPP::SendMsg()
   TxMessage.Data[6] = (uint8_t)(clutch << 1) | start_eng;
   CAN_Transmit(CAN2, &TxMessage);
 }
-void KPP::Brake(const uint8_t data) const
-{
-  PropSetOtL(data);
-  PropSetOtR(data);
-}
 void KPP::Parking(const uint16_t rpm)
 {
   if(parking == ON && parking_ch)
@@ -72,7 +67,8 @@ void KPP::Parking(const uint16_t rpm)
   }
   else if(parking == OFF && parking_ch)
   {
-    SetAllBf();
+    SetBfL();
+    SetBfR();
     if(rpm > 350)
     {
       clutch = 1;
@@ -82,8 +78,8 @@ void KPP::Parking(const uint16_t rpm)
 }
 void KPP::ResetAllValve() const
 {
-  ResetOtL();
-  ResetOtR();
+  SetOtL();
+  SetOtR();
   ResetBfL();
   ResetBfR();
   ResetFirst();
@@ -91,21 +87,6 @@ void KPP::ResetAllValve() const
   ResetThird();
   ResetForward();
   ResetReverse();
-}
-void KPP::SetAllOt() const  
-{
-  SetOtL(); 
-  SetOtR(); 
-}
-void KPP::ResetAllOt() const
-{
-  ResetOtL();
-  ResetOtR(); 
-}
-void KPP::SetAllBf() const  
-{
-  SetBfL(); 
-  SetBfR(); 
 }
 void KPP::ResetAllClutch() const
 {
@@ -116,7 +97,7 @@ void KPP::ResetAllClutch() const
 void KPP::SetClutch(const uint16_t rpm)
 {
   if(parking == OFF && clutch_state == PLUS && clutch < 3 && rpm > 350)
-  {
+  {//за счет времени спада давления в бустере передачи, алгоритм будет соответствовать ТТ, т.е. включается необходимая передача и через 100 мс выключается предыдущая.
     OffClutch();
     ++clutch;
     OnClutch();
@@ -168,28 +149,19 @@ void KPP::SetDirection(const uint8_t dir) const
   else if(dir == R)
     SetReverse();
 }
-void KPP::ResetDirection(const uint8_t dir) const
-{
-  if(dir == F)
-    ResetForward();
-  else if(dir == R)
-    ResetReverse();
-}
-void KPP::ResetAllDirect() const
-{
-  ResetForward();
-  ResetReverse();
-}
 void KPP::SwitchDirection(Engine& eng)
 {
   if(direct_ch && parking == OFF)
   {
     if(direction == N)
-      ResetAllDirect();
+    {
+      ResetForward();
+      ResetReverse();
+    }
     else if(direction == F)
-      ResetDirection(R);
+      ResetReverse();
     else if(direction == R)
-      ResetDirection(F);
+      ResetForward();
 
     if(direction)
     {
@@ -210,11 +182,61 @@ void KPP::SwitchDirection(Engine& eng)
   else
     start_eng = false;
 }
+void KPP::RightUp(uint8_t begin, uint8_t end,uint8_t right,uint8_t brake) const
+{
+  ResetBfR();//нужна задержка чтобы масло успело слиться
+
+  if(right > begin && right < end)
+  {
+    if(brake <= right)
+      SetOtR(right);
+    else if(brake > right && brake < end)
+      SetOtR(brake);
+    else if(brake >= end)
+      SetOtR();
+  }
+  else if(right >= end)
+    SetOtR();
+}
+void KPP::RightDown(uint8_t begin, uint8_t brake) const
+{
+  if(brake <= begin)
+    ResetOtR();
+  else
+    SetOtR(brake);
+
+  SetBfR();//должно меняться пропорционально по графику вкл. SetBfR(right)
+}
+void KPP::LeftUp(uint8_t begin, uint8_t end, uint8_t left, uint8_t brake) const
+{
+  ResetBfL();//нужна задержка чтобы масло успело слиться
+
+  if(left > begin && left < end)
+  {//приоритет у органа управления, который сильнее тормозит
+    if(brake <= left)
+      SetOtL(left);
+    else if(brake > left && brake < end)
+      SetOtL(brake);
+    else if(brake >= end)
+      SetOtL();
+  }
+  else if(left >= end)
+    SetOtL();
+}
+void KPP::LeftDown(uint8_t begin, uint8_t brake) const
+{
+  if(brake <= begin)
+    ResetOtL();
+  else
+    SetOtL(brake);
+
+  SetBfL();//должно меняться пропорционально по графику вкл. SetBfR(right)
+}
 void KPP::BrakeRotate()
 {
   static uint8_t old_left  = 0;
   static uint8_t old_right = 0;
-
+  
   bool left_up    = false;
   bool left_down  = false;
   bool right_up   = false;
@@ -251,74 +273,88 @@ void KPP::BrakeRotate()
 
   if(parking == OFF)
   {
-    if(left <= 5 && right <= 5)
-    {
-      if(brake <= 5)
-        SetAllOt();
-      else if(brake > 5 && brake < 95)
-        Brake(brake);
-      else if(brake >= 95)
-        ResetAllOt();
-    }
+    const uint8_t begin = 10;
+    const uint8_t end   = 90;
 
-    if(left_up && left > 5)
+    if(left <= begin)//приоритет у органа управления, который сильнее тормозит
     {
-      ResetBfL();
-      if(brake < left && left < 95)//приоритет у ОУ, который сильнее тормозит
-        PropSetOtL(left);
-      else if(brake > left && left < 95)
-        PropSetOtL(brake);
-      else if(left >= 95)
-        PropSetOtL(100);
-      PropBrakeR(brake);
-    }
-    else if(left_down && left > 5)
-    {
-      if(brake > left)
-        PropSetOtL(brake);
-      else
+      if(brake <= begin)
+        ResetOtL();//нужна задержка чтобы масло успело слиться
+      else if(brake > begin && brake < end)
+        SetOtL(brake);
+      else if(brake >= end)
         SetOtL();
-      SetBfL();//должно изменяться пропорционально по графику включения.
-      PropBrakeR(brake);
+    }
+    if(right <= begin)
+    {
+      if(brake <= begin)
+        ResetOtR();//нужна задержка чтобы масло успело слиться
+      else if(brake > begin && brake < end)
+        SetOtR(brake);
+      else if(brake >= end)
+        SetOtR();
     }
 
-    if(right_up && right > 5)
+    if(left_up)
     {
-      ResetBfR();
-      if(brake < right && right < 95)
-        PropSetOtR(right);
-      else if(brake > right && right < 95)
-        PropSetOtR(brake);
-      else if(right >= 95)
-        PropSetOtR(100);
-      PropBrakeL(brake);
+      LeftUp(begin, end, left, brake);
+      if(right_up)
+        RightUp(begin, end, right, brake);
+      else if(right_down)
+        RightDown(begin, brake);
     }
-    else if(right_down && right > 5)
+    else if(left_down)
     {
-      if(brake > right)
-        PropSetOtR(brake);
-      else
-        SetOtR();
-      SetBfR();//должно изменяться пропорционально по графику включения.
-      PropBrakeL(brake);
+      LeftDown(begin, brake);
+      if(right_up)
+        RightUp(begin, end, right, brake);
+      else if(right_down)
+        RightDown(begin, brake);
     }
+    else// if(!left_up && !left_down)
+      if(right_up)
+        RightUp(begin, end, right, brake);
+      else if(right_down)
+        RightDown(begin, brake);
   }
 }
-void KPP::PropBrakeR(const uint8_t brake) const
+
+//Нужное для пропорционального управления клапанами по графику!!!
+/*void KPP::GraphResetBfL()
 {
-  if(brake <= 5)
-    PropSetOtR(0);
-  else if(brake > 5 && brake < 95)
-    PropSetOtR(brake);
-  else if(brake >= 95)
-    PropSetOtR(100);
+  ResetBfL();
+  BfLcount = 0;
+  ResetBfL = false;
 }
-void KPP::PropBrakeL(const uint8_t brake) const
+void KPP::GraphSetBfL()
 {
-  if(brake <= 5)
-    PropSetOtL(0);
-  else if(brake > 5 && brake < 95)
-    PropSetOtL(brake);
-  else if(brake >= 95)
-    PropSetOtL(100);
-}
+  for(uint8_t i = 0; i < 100; ++i)
+  {
+    if(i < 10)
+      BfLtab[i] = 500;
+    else if(i == 10)
+      BfLtab[i] = 105;
+    else if(i < 99)
+      BfLtab[i] = BfLtab[i-1] + 5;
+    else
+      BfLtab[i] = 500;
+  }
+
+  if(SetBfL == true)
+  {
+    uint8_t left = SMleft.get() * 100 / 4095;
+    if(BfLcount < left && left > 12)
+      TIM_SetCompare3(TIM4, BfLtab[BfLcount++]);
+    else if(left <= 12)
+
+    TIM_SetCompare3(TIM4, BfLtab[BfLcount]);
+
+    if(BfLcount < 99)
+      ++BfLcount;
+    else
+    {
+      BfLcount = 0;
+      SetBfL   = false;
+    }
+  }
+}*/
