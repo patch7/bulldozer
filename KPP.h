@@ -20,26 +20,15 @@ const static uint8_t ON  = 1;
 class KPP
 {
 public:
-  KPP(const uint8_t size_filter = 9) : 
-  SMleft(size_filter),
-  SMright(size_filter),
-  SMthrottle(size_filter),
-  SMbrake(size_filter),
-  SMdeceler(size_filter),
-  SMtemp(size_filter),
-  direction(0),
-  clutch_state(0),
-  parking(1),
-  auto_reverse(0),
-  clutch(0),
-  old_direct(0),
-  oil_filter(0),
-  d_generator(0),
-  start_eng(0),
-  parking_ch(0),
-  clutch_ch(0),
-  direct_ch(0)
-  {}
+  KPP(const uint8_t size_filter = 9) : SMleft(size_filter),     SMright(size_filter),
+                                       SMthrottle(size_filter), SMbrake(size_filter),
+                                       SMdeceler(size_filter),  SMtemp(size_filter),
+                                       direction(0),            clutch_state(0),
+                                       parking(1),              auto_reverse(0),
+                                       clutch(0),               old_direct(0),
+                                       oil_filter(0),           d_generator(0),
+                                       start_eng(0),            parking_ch(0),
+                                       clutch_ch(0),            direct_ch(0) {}
   KPP(const KPP&)             = delete;
   KPP(KPP&&)                  = delete;
   KPP& operator= (const KPP&) = delete;
@@ -80,6 +69,14 @@ private:
   void SetOtL(const uint8_t) const;
   void SetOtR(const uint8_t) const;
 
+  void FlashWrite();
+  void FlashRead();
+  void CalibrateRud();
+  void CalibrateLeft();
+  void CalibrateRight();
+  void CalibrateBrake();
+  void CalibrateDecel();
+
   void ResetOtL()     const;
   void ResetOtR()     const;
   void ResetFirst()   const;
@@ -104,8 +101,25 @@ private:
 
   SlidingMedian SMleft, SMright, SMthrottle, SMbrake, SMdeceler, SMtemp;
 
-  uint16_t BfLtab[100] = {0};
-  uint16_t BfRtab[100] = {0};
+  uint16_t TableOtL[100] = {0};
+  uint16_t TableOtR[100] = {0};
+  uint16_t TableBfL[100] = {0};
+  uint16_t TableBfR[100] = {0};
+  uint16_t TableF[100]   = {0};
+  uint16_t TableR[100]   = {0};
+
+  uint16_t RudMin        = 0;
+  uint16_t RudMax        = 0;
+  uint16_t LeftMin       = 0;
+  uint16_t LeftMax       = 0;
+  uint16_t RightMin      = 0;
+  uint16_t RightMax      = 0;
+  uint16_t BrakeMin      = 0;
+  uint16_t BrakeMax      = 0;
+  uint16_t DecelerateMin = 0;
+  uint16_t DecelerateMax = 0;
+  //               Resv Resv Resv Resv Resv Decl  B   R   L  Rud  R   F  BfR BfL OtR OtL
+  uint16_t state;// 15 | 14 | 13 | 12 | 11 | 10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
 
   uint8_t BfLcount = 0;
   uint8_t BfRcount = 0;
