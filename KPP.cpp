@@ -318,3 +318,11 @@ void KPP::BrakeRotate()
         RightDown(begin, brake);
   }
 }
+void KPP::FlashWrite()
+{
+
+}
+void KPP::FlashRead()
+{
+  
+}

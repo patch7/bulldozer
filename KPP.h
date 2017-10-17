@@ -3,6 +3,7 @@
 
 #include "stm32f4xx.h"
 #include "stm32f4xx_can.h"
+#include "stm32f4xx_flash.h"
 #include "sliding_median.h"
 #include "engine.h"
 
@@ -52,6 +53,14 @@ public:
   void DigitalSet(const uint16_t);
   void AnalogSet(const uint16_t*);
   void SendMsg();
+
+  void FlashWrite();
+  void FlashRead();
+  void CalibrateRud();
+  void CalibrateLeft();
+  void CalibrateRight();
+  void CalibrateBrake();
+  void CalibrateDecel();
 private:
   void PropBrakeR(const uint8_t) const;
   void PropBrakeL(const uint8_t) const;
@@ -68,14 +77,6 @@ private:
 
   void SetOtL(const uint8_t) const;
   void SetOtR(const uint8_t) const;
-
-  void FlashWrite();
-  void FlashRead();
-  void CalibrateRud();
-  void CalibrateLeft();
-  void CalibrateRight();
-  void CalibrateBrake();
-  void CalibrateDecel();
 
   void ResetOtL()     const;
   void ResetOtR()     const;
