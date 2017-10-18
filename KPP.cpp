@@ -320,9 +320,15 @@ void KPP::BrakeRotate()
 }
 void KPP::FlashWrite()
 {
-
+  uint32_t* source_address = (uint32_t*)&calib;
+  FLASH_Unlock();
+  for (uint8_t i = 0; i < sizeof(calib); i += 4)
+    FLASH_ProgramWord((uint32_t)flash_address++, *source_address++);
+  FLASH_Lock();
 }
 void KPP::FlashRead()
 {
-  
+  uint32_t* source_address = (uint32_t*)&calib;
+  for (int i = 0; i < sizeof(calib); i += 4)
+    *source_address++ = *(__IO uint32_t*)flash_address++;
 }

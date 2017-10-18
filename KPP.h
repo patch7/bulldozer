@@ -98,29 +98,34 @@ private:
   void SetForward()   const;
   void SetReverse()   const;
 
+  struct calibrate
+  {
+    uint16_t TableOtL[50] = {0};
+    uint16_t TableOtR[50] = {0};
+    uint16_t TableBfL[50] = {0};
+    uint16_t TableBfR[50] = {0};
+    uint16_t TableF[50]   = {0};
+    uint16_t TableR[50]   = {0};
+
+    uint16_t RudMin        = 0;
+    uint16_t RudMax        = 0;
+    uint16_t LeftMin       = 0;
+    uint16_t LeftMax       = 0;
+    uint16_t RightMin      = 0;
+    uint16_t RightMax      = 0;
+    uint16_t BrakeMin      = 0;
+    uint16_t BrakeMax      = 0;
+    uint16_t DecelerateMin = 0;
+    uint16_t DecelerateMax = 0;
+    //                   Resv Resv Resv Resv Resv Decl B R L Rud R F BfR BfL OtR OtL
+    uint16_t state = 0;// 15 | 14 | 13 | 12 | 11 | 10 |9|8|7| 6 |5|4| 3 | 2 | 1 | 0 |
+  } calib;
+
   CanTxMsg TxMessage;
 
   SlidingMedian SMleft, SMright, SMthrottle, SMbrake, SMdeceler, SMtemp;
 
-  uint16_t TableOtL[100] = {0};
-  uint16_t TableOtR[100] = {0};
-  uint16_t TableBfL[100] = {0};
-  uint16_t TableBfR[100] = {0};
-  uint16_t TableF[100]   = {0};
-  uint16_t TableR[100]   = {0};
-
-  uint16_t RudMin        = 0;
-  uint16_t RudMax        = 0;
-  uint16_t LeftMin       = 0;
-  uint16_t LeftMax       = 0;
-  uint16_t RightMin      = 0;
-  uint16_t RightMax      = 0;
-  uint16_t BrakeMin      = 0;
-  uint16_t BrakeMax      = 0;
-  uint16_t DecelerateMin = 0;
-  uint16_t DecelerateMax = 0;
-  //               Resv Resv Resv Resv Resv Decl  B   R   L  Rud  R   F  BfR BfL OtR OtL
-  uint16_t state;// 15 | 14 | 13 | 12 | 11 | 10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+  const uint32_t* const flash_address  = (uint32_t*)0x08060000;
 
   uint8_t BfLcount = 0;
   uint8_t BfRcount = 0;

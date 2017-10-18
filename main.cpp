@@ -37,6 +37,7 @@ void ADCInputInit(void);
 void CANInit(void);
 void TIM_PWMInit(void);
 void TimerInit(void);
+void FlashInit(void);
 
 Engine eng;
 KPP    kpp;
@@ -44,6 +45,7 @@ KPP    kpp;
 void main()
 {
   MaxAllRccBusConfig();
+  FlashInit();
   
   GPIO_DeInit(GPIOA);//CAN1, ADC2ch1, ADC2ch4, ADC2ch5, ADC2ch7, TIM1-PWM
   GPIO_DeInit(GPIOB);//TIM4-PWM, CAN2, ADC2ch8
@@ -95,6 +97,12 @@ void MaxAllRccBusConfig()
     RCC_SYSCLKConfig(RCC_SYSCLKSource_PLLCLK);//SYSCLK clock = PLLCLK
     while(RCC_GetSYSCLKSource() != 8) {}
   }
+}
+
+void FlashInit()
+{
+  FLASH_PrefetchBufferCmd(ENABLE);
+  FLASH_SetLatency(FLASH_Latency_5);
 }
 
 //Настраиваем модуль DMA2 для автоматической обработки всех каналов АЦП3 и АЦП2
