@@ -54,13 +54,7 @@ public:
   void AnalogSet(const uint16_t*);
   void SendMsg();
 
-  void FlashWrite();
-  void FlashRead();
-  void CalibrateRud();
-  void CalibrateLeft();
-  void CalibrateRight();
-  void CalibrateBrake();
-  void CalibrateDecel();
+  void Calibrate(CanRxMsg&);
 private:
   void PropBrakeR(const uint8_t) const;
   void PropBrakeL(const uint8_t) const;
@@ -77,6 +71,9 @@ private:
 
   void SetOtL(const uint8_t) const;
   void SetOtR(const uint8_t) const;
+
+  void FlashWrite();
+  void FlashRead();
 
   void ResetOtL()     const;
   void ResetOtR()     const;
@@ -125,7 +122,7 @@ private:
 
   SlidingMedian SMleft, SMright, SMthrottle, SMbrake, SMdeceler, SMtemp;
 
-  const uint32_t* const flash_address  = (uint32_t*)0x08060000;
+  const uint32_t* flash_address  = (uint32_t*)0x08060000;
 
   uint8_t BfLcount = 0;
   uint8_t BfRcount = 0;

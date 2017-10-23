@@ -449,10 +449,10 @@ extern "C"
         TxMessage.IDE   = CAN_ID_STD;
         TxMessage.StdId   = 0x001;
         TxMessage.DLC     = 8;
-        TxMessage.Data[0] = time_ms % 256;
-        TxMessage.Data[1] = time_ms / 256;
-        TxMessage.Data[2] = time_ms / (256*256);
-        TxMessage.Data[3] = time_ms / (256*256*256);
+        TxMessage.Data[0] = (uint8_t)(time_ms);
+        TxMessage.Data[1] = (uint8_t)(time_ms >> 8);
+        TxMessage.Data[2] = (uint8_t)(time_ms >> 16);
+        TxMessage.Data[3] = (uint8_t)(time_ms >> 24);
         TxMessage.Data[4] = OT_LEFT  * 100 / 4095;
         TxMessage.Data[5] = OT_RIGHT * 100 / 4095;
         TxMessage.Data[6] = BF_LEFT  * 100 / 4095;
@@ -484,6 +484,9 @@ extern "C"
         {
         case 0x004:
           kpp.DigitalSet((RxMessage.Data[1] << 8) | RxMessage.Data[0]);
+          break;
+        case 0x111:
+          kpp.Calibrate(RxMessage);
           break;
         }
       else

@@ -318,17 +318,57 @@ void KPP::BrakeRotate()
         RightDown(begin, brake);
   }
 }
-void KPP::FlashWrite()
+void KPP::FlashWrite()//проверить, указатель может увеличиваться до бесконечности!!!
 {
-  uint32_t* source_address = (uint32_t*)&calib;
+  const uint32_t* source_address = (uint32_t*)&calib;
   FLASH_Unlock();
-  for (uint8_t i = 0; i < sizeof(calib); i += 4)
+  for (uint16_t i = 0; i < sizeof(calib); i += 4)
     FLASH_ProgramWord((uint32_t)flash_address++, *source_address++);
   FLASH_Lock();
 }
-void KPP::FlashRead()
+void KPP::FlashRead()//проверить, указатель может увеличиваться до бесконечности!!!
 {
-  uint32_t* source_address = (uint32_t*)&calib;
+  const uint32_t* source_address = (uint32_t*)&calib;
   for (int i = 0; i < sizeof(calib); i += 4)
     *source_address++ = *(__IO uint32_t*)flash_address++;
+}
+void KPP::Calibrate(CanRxMsg& RxMessage)
+{
+  if(RxMessage.Data[0] & 0x01)//Rud
+  {
+    if(RxMessage.Data[0] & 0x20)
+      calib.RudMin = SMthrottle.get() - 5;
+    else if(RxMessage.Data[0] & 0x40)
+      calib.RudMax = SMthrottle.get() + 5;
+  }
+  else if(RxMessage.Data[0] & 0x02)//Left
+  {
+    if(RxMessage.Data[0] & 0x20)
+      calib.LeftMin = SMleft.get() - 5;
+    else if(RxMessage.Data[0] & 0x40)
+      calib.LeftMax = SMleft.get() + 5;
+  }
+  else if(RxMessage.Data[0] & 0x04)//Right
+  {
+    if(RxMessage.Data[0] & 0x20)
+      calib.RightMin = SMright.get() - 5;
+    else if(RxMessage.Data[0] & 0x40)
+      calib.RightMax = SMright.get() + 5;
+  }
+  else if(RxMessage.Data[0] & 0x08)//Brake
+  {
+    if(RxMessage.Data[0] & 0x20)
+      calib.BrakeMin = SMbrake.get() - 5;
+    else if(RxMessage.Data[0] & 0x40)
+      calib.BrakeMax = SMbrake.get() + 5;
+  }
+  else if(RxMessage.Data[0] & 0x10)//Decel
+  {
+    if(RxMessage.Data[0] & 0x20)
+      calib.DecelerateMin = SMdeceler.get() - 5;
+    else if(RxMessage.Data[0] & 0x40)
+      calib.DecelerateMax = SMdeceler.get() + 5;
+  }
+  else if(RxMessage.Data[1] & 0x01)//FlashWrite
+    kpp.FlashWrite();
 }
