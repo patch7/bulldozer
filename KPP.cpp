@@ -320,16 +320,19 @@ void KPP::BrakeRotate()
 }
 void KPP::FlashWrite()//проверить, указатель может увеличиваться до бесконечности!!!
 {
+  const uint32_t* flash_address  = (uint32_t*)0x08060000;
   const uint32_t* source_address = (uint32_t*)&calib;
   FLASH_Unlock();
+  FLASH_EraseSector(FLASH_Sector_7, VoltageRange_3);
   for (uint16_t i = 0; i < sizeof(calib); i += 4)
     FLASH_ProgramWord((uint32_t)flash_address++, *source_address++);
   FLASH_Lock();
 }
 void KPP::FlashRead()//проверить, указатель может увеличиваться до бесконечности!!!
 {
-  const uint32_t* source_address = (uint32_t*)&calib;
-  for (int i = 0; i < sizeof(calib); i += 4)
+  const uint32_t* flash_address  = (uint32_t*)0x08060000;
+  uint32_t* source_address = (uint32_t*)&calib;
+  for (inti = 0; i < sizeof(calib); i += 4)
     *source_address++ = *(__IO uint32_t*)flash_address++;
 }
 void KPP::Calibrate(CanRxMsg& RxMessage)
@@ -370,5 +373,5 @@ void KPP::Calibrate(CanRxMsg& RxMessage)
       calib.DecelerateMax = SMdeceler.get() + 5;
   }
   else if(RxMessage.Data[1] & 0x01)//FlashWrite
-    kpp.FlashWrite();
+    FlashWrite();
 }

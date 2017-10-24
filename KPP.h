@@ -122,8 +122,6 @@ private:
 
   SlidingMedian SMleft, SMright, SMthrottle, SMbrake, SMdeceler, SMtemp;
 
-  const uint32_t* flash_address  = (uint32_t*)0x08060000;
-
   uint8_t BfLcount = 0;
   uint8_t BfRcount = 0;
 
