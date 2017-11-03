@@ -17,6 +17,166 @@ const static uint8_t MINUS = 2;
 const static uint8_t OFF = 0;
 const static uint8_t ON  = 1;
 
+class Calibrate
+{
+public:
+  friend class KPP;
+  typedef SlidingMedian SM;
+  Calibrate()                            = delete;
+  Calibrate(const Calibrate&)            = delete;
+  Calibrate(Calibrate&&)                 = delete;
+  Calibrate& operator=(const Calibrate&) = delete;
+  Calibrate& operator=(Calibrate&&)      = delete;
+  static void instanse();
+
+  void RemoteCtrl(uint8_t, SM&, SM&, SM&, SM&, SM&);
+  void SetOtLeftTime(CanRxMsg&);
+  void SetOtLeftCur(CanRxMsg&);
+  void SetOtRightTime(CanRxMsg&);
+  void SetOtRightCur(CanRxMsg&);
+  void SetBfLeftTime(CanRxMsg&);
+  void SetBfLeftCur(CanRxMsg&);
+  void SetBfRightTime(CanRxMsg&);
+  void SetBfRightCur(CanRxMsg&);
+  void SetForwardTime(CanRxMsg&);
+  void SetForwardCur(CanRxMsg&);
+  void SetReverseTime(CanRxMsg&);
+  void SetReverseCur(CanRxMsg&);
+  void SetOneTime(CanRxMsg&);
+  void SetOneCur(CanRxMsg&);
+  void SetTwoTime(CanRxMsg&);
+  void SetTwoCur(CanRxMsg&);
+  void SetThreeTime(CanRxMsg&);
+  void SetThreeCur(CanRxMsg&);
+  void SendData();
+  void Save();
+  ~Calibrate()                           = default;
+private:
+  void FlashWrite();
+  void FlashRead();
+  //надо сделать определение указателя на память с калибровками в одном месте. Тут!
+  uint16_t OtLeftTime[8]  = {0};
+  uint16_t OtLeftCur[8]   = {0};
+  uint16_t OtRightTime[8] = {0};
+  uint16_t OtRightCur[8]  = {0};
+  uint16_t BfLeftTime[8]  = {0};
+  uint16_t BfLeftCur[8]   = {0};
+  uint16_t BfRightTime[8] = {0};
+  uint16_t BfRightCur[8]  = {0};
+  uint16_t ForwardTime[8] = {0};
+  uint16_t ForwardCur[8]  = {0};
+  uint16_t ReverseTime[8] = {0};
+  uint16_t ReverseCur[8]  = {0};
+  uint16_t OneTime[8]     = {0};
+  uint16_t OneCur[8]      = {0};
+  uint16_t TwoTime[8]     = {0};
+  uint16_t TwoCur[8]      = {0};
+  uint16_t ThreeTime[8]   = {0};
+  uint16_t ThreeCur[8]    = {0};
+
+  uint16_t RudMin     = 0;
+  uint16_t RudMax     = 0;
+  uint16_t LeftMin    = 0;
+  uint16_t LeftMax    = 0;
+  uint16_t RightMin   = 0;
+  uint16_t RightMax   = 0;
+  uint16_t BrakeMin   = 0;
+  uint16_t BrakeMax   = 0;
+  uint16_t DecelerMin = 0;
+  uint16_t DecelerMax = 0;
+};
+
+inline void SetOtLeftTime(CanRxMsg& RxMessage)
+{
+  for(uint8_t i = 0; i < RxMessage.DLC; ++i)
+    OtLeftTime[i] = RxMessage.Data[i]
+}
+inline void SetOtLeftCur(CanRxMsg& RxMessage)
+{
+  for(uint8_t i = 0; i < RxMessage.DLC; ++i)
+    OtLeftCur[i] = RxMessage.Data[i]
+}
+inline void SetOtRightTime(CanRxMsg& RxMessage)
+{
+  for(uint8_t i = 0; i < RxMessage.DLC; ++i)
+    OtRightTime[i] = RxMessage.Data[i]
+}
+inline void SetOtRightCur(CanRxMsg& RxMessage)
+{
+  for(uint8_t i = 0; i < RxMessage.DLC; ++i)
+    OtRightCur[i] = RxMessage.Data[i]
+}
+inline void SetBfLeftTime(CanRxMsg& RxMessage)
+{
+  for(uint8_t i = 0; i < RxMessage.DLC; ++i)
+    BfLeftTime[i] = RxMessage.Data[i]
+}
+inline void SetBfLeftCur(CanRxMsg& RxMessage)
+{
+  for(uint8_t i = 0; i < RxMessage.DLC; ++i)
+    BfLeftCur[i] = RxMessage.Data[i]
+}
+inline void SetBfRightTime(CanRxMsg& RxMessage)
+{
+  for(uint8_t i = 0; i < RxMessage.DLC; ++i)
+    BfRightTime[i] = RxMessage.Data[i]
+}
+inline void SetBfRightCur(CanRxMsg& RxMessage)
+{
+  for(uint8_t i = 0; i < RxMessage.DLC; ++i)
+    BfRightCur[i] = RxMessage.Data[i]
+}
+inline void SetForwardTime(CanRxMsg& RxMessage)
+{
+  for(uint8_t i = 0; i < RxMessage.DLC; ++i)
+    ForwardTime[i] = RxMessage.Data[i]
+}
+inline void SetForwardCur(CanRxMsg& RxMessage)
+{
+  for(uint8_t i = 0; i < RxMessage.DLC; ++i)
+    ForwardCur[i] = RxMessage.Data[i]
+}
+inline void SetReverseTime(CanRxMsg& RxMessage)
+{
+  for(uint8_t i = 0; i < RxMessage.DLC; ++i)
+    ReverseTime[i] = RxMessage.Data[i]
+}
+inline void SetReverseCur(CanRxMsg& RxMessage)
+{
+  for(uint8_t i = 0; i < RxMessage.DLC; ++i)
+    ReverseCur[i] = RxMessage.Data[i]
+}
+inline void SetOneTime(CanRxMsg& RxMessage)
+{
+  for(uint8_t i = 0; i < RxMessage.DLC; ++i)
+    OneTime[i] = RxMessage.Data[i]
+}
+inline void SetOneCur(CanRxMsg& RxMessage)
+{
+  for(uint8_t i = 0; i < RxMessage.DLC; ++i)
+    OneCur[i] = RxMessage.Data[i]
+}
+inline void SetTwoTime(CanRxMsg& RxMessage)
+{
+  for(uint8_t i = 0; i < RxMessage.DLC; ++i)
+    TwoTime[i] = RxMessage.Data[i]
+}
+inline void SetTwoCur(CanRxMsg& RxMessage)
+{
+  for(uint8_t i = 0; i < RxMessage.DLC; ++i)
+    TwoCur[i] = RxMessage.Data[i]
+}
+inline void SetThreeTime(CanRxMsg& RxMessage)
+{
+  for(uint8_t i = 0; i < RxMessage.DLC; ++i)
+    ThreeTime[i] = RxMessage.Data[i]
+}
+inline void SetThreeCur(CanRxMsg& RxMessage)
+{
+  for(uint8_t i = 0; i < RxMessage.DLC; ++i)
+    ThreeCur[i] = RxMessage.Data[i]
+}
+
 //все методы класса необходимо пересмотреть после создания общей структуры!!!
 class KPP
 {
@@ -53,70 +213,37 @@ public:
   void DigitalSet(const uint16_t);
   void AnalogSet(const uint16_t*);
   void SendMsg();
-
-  void Calibrate(CanRxMsg&);
 private:
-  void PropBrakeR(const uint8_t) const;
-  void PropBrakeL(const uint8_t) const;
-  void PropSetOtL(const uint8_t) const;
-  void PropSetOtR(const uint8_t) const;
-
-  void OnClutch()     const;
-  void OffClutch()    const;
-
+  void PropBrakeR(const uint8_t)                   const;
+  void PropBrakeL(const uint8_t)                   const;
+  void PropSetOtL(const uint8_t)                   const;
+  void PropSetOtR(const uint8_t)                   const;
+  void OnClutch()                                  const;
+  void OffClutch()                                 const;
   void RightUp(uint8_t, uint8_t, uint8_t, uint8_t) const;
   void RightDown(uint8_t, uint8_t)                 const;
   void LeftUp(uint8_t, uint8_t, uint8_t, uint8_t)  const;
   void LeftDown(uint8_t, uint8_t)                  const;
-
-  void SetOtL(const uint8_t) const;
-  void SetOtR(const uint8_t) const;
-
-  void FlashWrite();
-  void FlashRead();
-
-  void ResetOtL()     const;
-  void ResetOtR()     const;
-  void ResetFirst()   const;
-  void ResetSecond()  const;
-  void ResetThird()   const;
-  void ResetForward() const;
-  void ResetReverse() const;
-  //особой необходимости в этих методах нет, используются только по 1 разу.
-  void ResetBfL()     const;
-  void ResetBfR()     const;
-  void SetOtL()       const;
-  void SetOtR()       const;
-  void SetBfL()       const;
-  void SetBfR()       const;
-  void SetFirst()     const;
-  void SetSecond()    const;
-  void SetThird()     const;
-  void SetForward()   const;
-  void SetReverse()   const;
-
-  struct calibrate
-  {
-    uint16_t TableOtL[50] = {0};
-    uint16_t TableOtR[50] = {0};
-    uint16_t TableBfL[50] = {0};
-    uint16_t TableBfR[50] = {0};
-    uint16_t TableF[50]   = {0};
-    uint16_t TableR[50]   = {0};
-
-    uint16_t RudMin        = 0;
-    uint16_t RudMax        = 0;
-    uint16_t LeftMin       = 0;
-    uint16_t LeftMax       = 0;
-    uint16_t RightMin      = 0;
-    uint16_t RightMax      = 0;
-    uint16_t BrakeMin      = 0;
-    uint16_t BrakeMax      = 0;
-    uint16_t DecelerateMin = 0;
-    uint16_t DecelerateMax = 0;
-    //                   Resv Resv Resv Resv Resv Decl B R L Rud R F BfR BfL OtR OtL
-    uint16_t state = 0;// 15 | 14 | 13 | 12 | 11 | 10 |9|8|7| 6 |5|4| 3 | 2 | 1 | 0 |
-  } calib;
+  void SetOtL(const uint8_t)                       const;
+  void SetOtR(const uint8_t)                       const;
+  void ResetOtL()                                  const;
+  void ResetOtR()                                  const;
+  void ResetFirst()                                const;
+  void ResetSecond()                               const;
+  void ResetThird()                                const;
+  void ResetForward()                              const;
+  void ResetReverse()                              const;
+  void ResetBfL()                                  const;
+  void ResetBfR()                                  const;
+  void SetOtL()                                    const;
+  void SetOtR()                                    const;
+  void SetBfL()                                    const;
+  void SetBfR()                                    const;
+  void SetFirst()                                  const;
+  void SetSecond()                                 const;
+  void SetThird()                                  const;
+  void SetForward()                                const;
+  void SetReverse()                                const;
 
   CanTxMsg TxMessage;
 

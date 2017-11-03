@@ -318,7 +318,7 @@ void KPP::BrakeRotate()
         RightDown(begin, brake);
   }
 }
-void KPP::FlashWrite()//проверить, указатель может увеличиваться до бесконечности!!!
+void KPP::FlashWrite()
 {
   const uint32_t* flash_address  = (uint32_t*)0x08060000;
   const uint32_t* source_address = (uint32_t*)&calib;
@@ -328,50 +328,64 @@ void KPP::FlashWrite()//проверить, указатель может уве
     FLASH_ProgramWord((uint32_t)flash_address++, *source_address++);
   FLASH_Lock();
 }
-void KPP::FlashRead()//проверить, указатель может увеличиваться до бесконечности!!!
+void KPP::FlashRead()
 {
   const uint32_t* flash_address  = (uint32_t*)0x08060000;
   uint32_t* source_address = (uint32_t*)&calib;
   for (inti = 0; i < sizeof(calib); i += 4)
     *source_address++ = *(__IO uint32_t*)flash_address++;
 }
-void KPP::Calibrate(CanRxMsg& RxMessage)
+void Calibrate::RemoteCtrl(uint8_t state, SM& throt, SM& l, SM& r, SM& brake, SM& dec)
 {
-  if(RxMessage.Data[0] & 0x01)//Rud
+  switch(state)
   {
-    if(RxMessage.Data[0] & 0x20)
-      calib.RudMin = SMthrottle.get() - 5;
-    else if(RxMessage.Data[0] & 0x40)
-      calib.RudMax = SMthrottle.get() + 5;
+    case 0x21: RudMin     = throt.get(); break;
+    case 0x41: RudMax     = throt.get(); break;
+    case 0x22: LeftMin    = l.get();     break;
+    case 0x42: LeftMax    = l.get();     break;
+    case 0x23: RightMin   = r.get();     break;
+    case 0x43: RightMax   = r.get();     break;
+    case 0x24: BrakeMin   = brake.get(); break;
+    case 0x44: BrakeMax   = brake.get(); break;
+    case 0x25: DecelerMin = dec.get();   break;
+    case 0x45: DecelerMax = dec.get();   break;
   }
-  else if(RxMessage.Data[0] & 0x02)//Left
+}
+void CalibrateOtL(uint16_t data)
+{
+  for(uint8_t i = 0; i < sizeof(OtLeftTime) / sizeof(*OtLeftTime); ++i)
+    OtLeftTime[i] = (uint8_t)data;
+  *OtLeftCur  = (uint8_t)(data >> 8);
+  
+  static uint16_t count = 0;
+  if(count == 0)
+    ResetOtL();
+  //TableCur[count]  = SmCurOtL.get();
+  TablePres[count] = SmPresOtL.get();
+  ++count;
+  if(count == 50)
+    SetOtL();
+  if(count == 100)
   {
-    if(RxMessage.Data[0] & 0x20)
-      calib.LeftMin = SMleft.get() - 5;
-    else if(RxMessage.Data[0] & 0x40)
-      calib.LeftMax = SMleft.get() + 5;
+    count  = 0;
+    calOtL = false;
+
+    //auto max_cur  = std::max_element(TableCur, TableCur + 100);
+    auto max_pres = std::max_element(TablePres, TablePres + 100);
+
+    int j = 0;
+    while(TablePres[j] <= 0) ++j;
+    UpPresOtLms = j * 10;
+
+    for(int i = 0; i < 100; ++i)
+    {
+      if(TablePres + i == max_pres)
+        flag = true;
+      if(flag && TablePres[i] <= max_pres - (max_pres / 10))
+        start = i;
+      if(flag && TablePres[i] <= 0)
+        end = i;
+    }
+    DownPresOtLms = (end - start) * 10;
   }
-  else if(RxMessage.Data[0] & 0x04)//Right
-  {
-    if(RxMessage.Data[0] & 0x20)
-      calib.RightMin = SMright.get() - 5;
-    else if(RxMessage.Data[0] & 0x40)
-      calib.RightMax = SMright.get() + 5;
-  }
-  else if(RxMessage.Data[0] & 0x08)//Brake
-  {
-    if(RxMessage.Data[0] & 0x20)
-      calib.BrakeMin = SMbrake.get() - 5;
-    else if(RxMessage.Data[0] & 0x40)
-      calib.BrakeMax = SMbrake.get() + 5;
-  }
-  else if(RxMessage.Data[0] & 0x10)//Decel
-  {
-    if(RxMessage.Data[0] & 0x20)
-      calib.DecelerateMin = SMdeceler.get() - 5;
-    else if(RxMessage.Data[0] & 0x40)
-      calib.DecelerateMax = SMdeceler.get() + 5;
-  }
-  else if(RxMessage.Data[1] & 0x01)//FlashWrite
-    FlashWrite();
 }

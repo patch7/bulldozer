@@ -235,7 +235,7 @@ void TimerInit()
   TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
   TIM_TimeBaseStructInit(&TIM_TimeBaseInitStruct);
   TIM_TimeBaseInitStruct.TIM_Prescaler = 840;//Mgz*10
-  TIM_TimeBaseInitStruct.TIM_Period = 2000;// 20 мс
+  TIM_TimeBaseInitStruct.TIM_Period = 200;// 2 мс
   TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
   
   TIM_TimeBaseInitStruct.TIM_Prescaler = 840;//Mgz*10
