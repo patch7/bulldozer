@@ -39,8 +39,9 @@ void TIM_PWMInit(void);
 void TimerInit(void);
 void FlashInit(void);
 
-Engine eng;
-KPP    kpp;
+Engine    eng;
+KPP       kpp;
+Calibrate& cal = Calibrate::getInstance();
 
 void main()
 {
@@ -482,12 +483,33 @@ extern "C"
       if(RxMessage.IDE == CAN_ID_STD)
         switch(RxMessage.StdId)
         {
-        case 0x004:
-          kpp.DigitalSet((RxMessage.Data[1] << 8) | RxMessage.Data[0]);
-          break;
-        case 0x111:
-          kpp.Calibrate(RxMessage);
-          break;
+          case 0x004:
+            kpp.DigitalSet((RxMessage.Data[1] << 8) | RxMessage.Data[0]);
+            break;
+          case 0x010:
+            cal.RemoteCtrl(RxMessage.Data[0], kpp.GetThrot(), kpp.GetLeft(),
+                              kpp.GetRight(), kpp.GetBrake(), kpp.GetDecel());
+            break;
+          case 0x100: cal.SetOtLeftTime(RxMessage);  break;
+          case 0x101: cal.SetOtLeftCur(RxMessage);   break;
+          case 0x102: cal.SetOtRightTime(RxMessage); break;
+          case 0x103: cal.SetOtRightCur(RxMessage);  break;
+          case 0x104: cal.SetBfLeftTime(RxMessage);  break;
+          case 0x105: cal.SetBfLeftCur(RxMessage);   break;
+          case 0x106: cal.SetBfRightTime(RxMessage); break;
+          case 0x107: cal.SetBfRightCur(RxMessage);  break;
+          case 0x108: cal.SetForwardTime(RxMessage); break;
+          case 0x109: cal.SetForwardCur(RxMessage);  break;
+          case 0x10A: cal.SetReverseTime(RxMessage); break;
+          case 0x10B: cal.SetReverseCur(RxMessage);  break;
+          case 0x10C: cal.SetOneTime(RxMessage);     break;
+          case 0x10D: cal.SetOneCur(RxMessage);      break;
+          case 0x10E: cal.SetTwoTime(RxMessage);     break;
+          case 0x10F: cal.SetTwoCur(RxMessage);      break;
+          case 0x110: cal.SetThreeTime(RxMessage);   break;
+          case 0x111: cal.SetThreeCur(RxMessage);    break;
+          case 0x112: cal.Save(cal);                 break;
+          case 0x113: cal.SendData();                break;
         }
       else
         switch(RxMessage.ExtId)

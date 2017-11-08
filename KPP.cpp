@@ -204,7 +204,6 @@ void KPP::RightDown(uint8_t begin, uint8_t brake) const
     ResetOtR();
   else
     SetOtR(brake);
-
   SetBfR();//должно меняться пропорционально по графику вкл. SetBfR(right)
 }
 void KPP::LeftUp(uint8_t begin, uint8_t end, uint8_t left, uint8_t brake) const
@@ -229,7 +228,6 @@ void KPP::LeftDown(uint8_t begin, uint8_t brake) const
     ResetOtL();
   else
     SetOtL(brake);
-
   SetBfL();//должно меняться пропорционально по графику вкл. SetBfR(right)
 }
 void KPP::BrakeRotate()
@@ -318,74 +316,98 @@ void KPP::BrakeRotate()
         RightDown(begin, brake);
   }
 }
-void KPP::FlashWrite()
+void Calibrate::FlashWrite(const Calibrate& inst)//надо проверить
 {
-  const uint32_t* flash_address  = (uint32_t*)0x08060000;
-  const uint32_t* source_address = (uint32_t*)&calib;
+  const uint32_t* flash_address  = (uint32_t*)address;
+  const uint32_t* source_address = (uint32_t*)&inst.d;
   FLASH_Unlock();
   FLASH_EraseSector(FLASH_Sector_7, VoltageRange_3);
-  for (uint16_t i = 0; i < sizeof(calib); i += 4)
+  for (uint16_t i = 0; i < sizeof(inst.d); i += 4)
     FLASH_ProgramWord((uint32_t)flash_address++, *source_address++);
   FLASH_Lock();
 }
-void KPP::FlashRead()
+void Calibrate::FlashRead(Calibrate& inst)//надо проверить
 {
-  const uint32_t* flash_address  = (uint32_t*)0x08060000;
-  uint32_t* source_address = (uint32_t*)&calib;
-  for (inti = 0; i < sizeof(calib); i += 4)
+  const uint32_t* flash_address = (uint32_t*)address;
+  uint32_t* source_address = (uint32_t*)&inst.d;
+  for (uint16_t i = 0; i < sizeof(inst.d); i += 4)
     *source_address++ = *(__IO uint32_t*)flash_address++;
 }
 void Calibrate::RemoteCtrl(uint8_t state, SM& throt, SM& l, SM& r, SM& brake, SM& dec)
 {
   switch(state)
   {
-    case 0x21: RudMin     = throt.get(); break;
-    case 0x41: RudMax     = throt.get(); break;
-    case 0x22: LeftMin    = l.get();     break;
-    case 0x42: LeftMax    = l.get();     break;
-    case 0x23: RightMin   = r.get();     break;
-    case 0x43: RightMax   = r.get();     break;
-    case 0x24: BrakeMin   = brake.get(); break;
-    case 0x44: BrakeMax   = brake.get(); break;
-    case 0x25: DecelerMin = dec.get();   break;
-    case 0x45: DecelerMax = dec.get();   break;
+    case 0x21: d.RudMin     = throt.get(); break;
+    case 0x41: d.RudMax     = throt.get(); break;
+    case 0x22: d.LeftMin    = l.get();     break;
+    case 0x42: d.LeftMax    = l.get();     break;
+    case 0x23: d.RightMin   = r.get();     break;
+    case 0x43: d.RightMax   = r.get();     break;
+    case 0x24: d.BrakeMin   = brake.get(); break;
+    case 0x44: d.BrakeMax   = brake.get(); break;
+    case 0x25: d.DecelerMin = dec.get();   break;
+    case 0x45: d.DecelerMax = dec.get();   break;
   }
 }
-void CalibrateOtL(uint16_t data)
+void Calibrate::Send(CanTxMsg& TxMessage, uint16_t* data)
 {
-  for(uint8_t i = 0; i < sizeof(OtLeftTime) / sizeof(*OtLeftTime); ++i)
-    OtLeftTime[i] = (uint8_t)data;
-  *OtLeftCur  = (uint8_t)(data >> 8);
-  
-  static uint16_t count = 0;
-  if(count == 0)
-    ResetOtL();
-  //TableCur[count]  = SmCurOtL.get();
-  TablePres[count] = SmPresOtL.get();
-  ++count;
-  if(count == 50)
-    SetOtL();
-  if(count == 100)
-  {
-    count  = 0;
-    calOtL = false;
+  TxMessage.Data[0] = (uint8_t)(data[0] / koef);
+  TxMessage.Data[1] = (uint8_t)(data[1] / koef);
+  TxMessage.Data[2] = (uint8_t)(data[2] / koef);
+  TxMessage.Data[3] = (uint8_t)(data[3] / koef);
+  TxMessage.Data[4] = (uint8_t)(data[4] / koef);
+  TxMessage.Data[5] = (uint8_t)(data[5] / koef);
+  TxMessage.Data[6] = (uint8_t)(data[6] / koef);
+  TxMessage.Data[7] = (uint8_t)(data[7] / koef);
+  CAN_Transmit(CAN2, &TxMessage);
+}
+void Calibrate::SendData()
+{
+  CanTxMsg TxMessage;
+  TxMessage.RTR     = CAN_RTR_DATA;
+  TxMessage.IDE     = CAN_ID_STD;
+  TxMessage.DLC     = 8;
 
-    //auto max_cur  = std::max_element(TableCur, TableCur + 100);
-    auto max_pres = std::max_element(TablePres, TablePres + 100);
-
-    int j = 0;
-    while(TablePres[j] <= 0) ++j;
-    UpPresOtLms = j * 10;
-
-    for(int i = 0; i < 100; ++i)
-    {
-      if(TablePres + i == max_pres)
-        flag = true;
-      if(flag && TablePres[i] <= max_pres - (max_pres / 10))
-        start = i;
-      if(flag && TablePres[i] <= 0)
-        end = i;
-    }
-    DownPresOtLms = (end - start) * 10;
-  }
+  TxMessage.StdId = 0x200;
+  Send(TxMessage, d.OtLeftTime);
+  TxMessage.StdId = 0x201;
+  Send(TxMessage, d.OtLeftCur);
+  TxMessage.StdId = 0x202;
+  Send(TxMessage, d.OtRightTime);
+  TxMessage.StdId = 0x203;
+  Send(TxMessage, d.OtRightCur);
+  TxMessage.StdId = 0x204;
+  Send(TxMessage, d.BfLeftTime);
+  TxMessage.StdId = 0x205;
+  Send(TxMessage, d.BfLeftCur);
+  TxMessage.StdId = 0x206;
+  Send(TxMessage, d.BfRightTime);
+  TxMessage.StdId = 0x207;
+  Send(TxMessage, d.BfRightCur);
+  TxMessage.StdId = 0x208;
+  Send(TxMessage, d.ForwardTime);
+  TxMessage.StdId = 0x209;
+  Send(TxMessage, d.ForwardCur);
+  TxMessage.StdId = 0x20A;
+  Send(TxMessage, d.ReverseTime);
+  TxMessage.StdId = 0x20B;
+  Send(TxMessage, d.ReverseCur);
+  TxMessage.StdId = 0x20C;
+  Send(TxMessage, d.OneTime);
+  TxMessage.StdId = 0x20D;
+  Send(TxMessage, d.OneCur);
+  TxMessage.StdId = 0x20E;
+  Send(TxMessage, d.TwoTime);
+  TxMessage.StdId = 0x20F;
+  Send(TxMessage, d.TwoCur);
+  TxMessage.StdId = 0x210;
+  Send(TxMessage, d.ThreeTime);
+  TxMessage.StdId = 0x211;
+  Send(TxMessage, d.ThreeCur);
+}
+Calibrate& Calibrate::getInstance()
+{
+  static Calibrate instance;
+  FlashRead(instance);
+  return instance;
 }

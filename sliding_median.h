@@ -18,8 +18,8 @@ public:
   ~SlidingMedian() { delete[] array; }
 private:
   uint16_t size, mediane;
-  bool is_change;
   uint16_t* array;
+  bool is_change;
 };
 
 #endif /* __SLIDING */
