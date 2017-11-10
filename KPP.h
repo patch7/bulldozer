@@ -17,6 +17,8 @@ const static uint8_t MINUS = 2;
 const static uint8_t OFF = 0;
 const static uint8_t ON  = 1;
 
+bool CanTxMailBox_IsEmpty(CAN_TypeDef*);
+
 class Calibrate//Singleton by transform Scott Meyers.
 {
 public:

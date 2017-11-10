@@ -1,5 +1,15 @@
 #include "KPP.h"
 
+bool CanTxMailBox_IsEmpty(CAN_TypeDef* CANx)
+{
+  if((CANx->TSR & CAN_TSR_TME0) == CAN_TSR_TME0 ||
+     (CANx->TSR & CAN_TSR_TME1) == CAN_TSR_TME1 ||
+     (CANx->TSR & CAN_TSR_TME2) == CAN_TSR_TME2)
+    return true;
+  else
+    return false;
+}
+
 void KPP::DigitalSet(const uint16_t data)
 {
   if(parking != (0x0003 & (data >> 4)))
@@ -316,6 +326,7 @@ void KPP::BrakeRotate()
         RightDown(begin, brake);
   }
 }
+
 void Calibrate::FlashWrite(const Calibrate& inst)//надо проверить
 {
   const uint32_t* flash_address  = (uint32_t*)address;
@@ -359,6 +370,7 @@ void Calibrate::Send(CanTxMsg& TxMessage, uint16_t* data)
   TxMessage.Data[5] = (uint8_t)(data[5] / koef);
   TxMessage.Data[6] = (uint8_t)(data[6] / koef);
   TxMessage.Data[7] = (uint8_t)(data[7] / koef);
+  while(!CanTxMailBox_IsEmpty(CAN2));
   CAN_Transmit(CAN2, &TxMessage);
 }
 void Calibrate::SendData()
@@ -367,6 +379,42 @@ void Calibrate::SendData()
   TxMessage.RTR     = CAN_RTR_DATA;
   TxMessage.IDE     = CAN_ID_STD;
   TxMessage.DLC     = 8;
+
+  TxMessage.StdId = 0x1FD;
+  TxMessage.Data[0] = (uint8_t)(d.RudMin);
+  TxMessage.Data[1] = (uint8_t)(d.RudMin  >> 8);
+  TxMessage.Data[2] = (uint8_t)(d.RudMax);
+  TxMessage.Data[3] = (uint8_t)(d.RudMax  >> 8);
+  TxMessage.Data[4] = (uint8_t)(d.LeftMin);
+  TxMessage.Data[5] = (uint8_t)(d.LeftMin >> 8);
+  TxMessage.Data[6] = (uint8_t)(d.LeftMax);
+  TxMessage.Data[7] = (uint8_t)(d.LeftMax >> 8);
+  while(!CanTxMailBox_IsEmpty(CAN2));
+  CAN_Transmit(CAN2, &TxMessage);
+
+  TxMessage.StdId = 0x1FE;
+  TxMessage.Data[0] = (uint8_t)(d.RightMin);
+  TxMessage.Data[1] = (uint8_t)(d.RightMin >> 8);
+  TxMessage.Data[2] = (uint8_t)(d.RightMax);
+  TxMessage.Data[3] = (uint8_t)(d.RightMax >> 8);
+  TxMessage.Data[4] = (uint8_t)(d.BrakeMin);
+  TxMessage.Data[5] = (uint8_t)(d.BrakeMin >> 8);
+  TxMessage.Data[6] = (uint8_t)(d.BrakeMax);
+  TxMessage.Data[7] = (uint8_t)(d.BrakeMax >> 8);
+  while(!CanTxMailBox_IsEmpty(CAN2));
+  CAN_Transmit(CAN2, &TxMessage);
+
+  TxMessage.StdId = 0x1FF;
+  TxMessage.Data[0] = (uint8_t)(d.DecelerMin);
+  TxMessage.Data[1] = (uint8_t)(d.DecelerMin >> 8);
+  TxMessage.Data[2] = (uint8_t)(d.DecelerMax);
+  TxMessage.Data[3] = (uint8_t)(d.DecelerMax >> 8);
+  TxMessage.Data[4] = 0;
+  TxMessage.Data[5] = 0;
+  TxMessage.Data[6] = 0;
+  TxMessage.Data[7] = 0;
+  while(!CanTxMailBox_IsEmpty(CAN2));
+  CAN_Transmit(CAN2, &TxMessage);
 
   TxMessage.StdId = 0x200;
   Send(TxMessage, d.OtLeftTime);
