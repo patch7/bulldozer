@@ -39,6 +39,7 @@ void TIM_PWMInit(void);
 void TimerInit(void);
 void FlashInit(void);
 
+Calibrate::State state = Calibrate::Not;
 Engine    eng;
 KPP       kpp;
 Calibrate& cal = Calibrate::getInstance();
@@ -420,6 +421,7 @@ extern "C"
     if(DMA_GetITStatus(DMA2_Stream2, DMA_IT_TCIF2))
     {
       DMA_ClearITPendingBit(DMA2_Stream2, DMA_IT_TCIF2);
+      cal.CurrentSet(ADCPWM);
     }
   }
   
@@ -467,6 +469,19 @@ extern "C"
         kpp.SetClutch(eng.GetRpm());
         kpp.SwitchDirection(eng);
         kpp.BrakeRotate();
+        //калибровка клапана в автоматическом режиме по условию!
+        switch(state)
+        {//калибровку клапанов необходимо проводить на каждую точку в 100 мс, чтобы компенсировать задержку реакции клапана.
+          case Calibrate::OtLeftV:  cal.SetOtLeftValve(state);  break;
+          case Calibrate::OtRightV: cal.SetOtRightValve(state); break;
+          case Calibrate::BfLeftV:  cal.SetBfLeftValve(state);  break;
+          case Calibrate::BfRightV: cal.SetBfRightValve(state); break;
+          case Calibrate::ForwardV: cal.SetForwardValve(state); break;
+          case Calibrate::ReverseV: cal.SetReverseValve(state); break;
+          case Calibrate::OneV:     cal.SetOneValve(state);     break;
+          case Calibrate::TwoV:     cal.SetTwoValve(state);     break;
+          case Calibrate::ThreeV:   cal.SetThreeValve(state);   break;
+        }
       }
     }
   }
@@ -476,46 +491,55 @@ extern "C"
   {
     if (CAN_GetITStatus(CAN2, CAN_IT_FMP0))
     {
-      CanRxMsg RxMessage;
+      CanRxMsg RxMsg;
       CAN_ClearITPendingBit(CAN2, CAN_IT_FMP0);
-      CAN_Receive(CAN2, CAN_FIFO0, &RxMessage);
+      CAN_Receive(CAN2, CAN_FIFO0, &RxMsg);
       
-      if(RxMessage.IDE == CAN_ID_STD)
-        switch(RxMessage.StdId)
+      if(RxMsg.IDE == CAN_ID_STD)
+        switch(RxMsg.StdId)
         {
           case 0x004:
-            kpp.DigitalSet((RxMessage.Data[1] << 8) | RxMessage.Data[0]);
+            kpp.DigitalSet((RxMsg.Data[1] << 8) | RxMsg.Data[0]);
             break;
           case 0x010:
-            cal.RemoteCtrl(RxMessage.Data[0], kpp.GetThrot(), kpp.GetLeft(),
-                              kpp.GetRight(), kpp.GetBrake(), kpp.GetDecel());
+            cal.RemoteCtrl(RxMsg.Data[0],kpp.GetT(),kpp.GetL(),kpp.GetR(),kpp.GetB(),kpp.GetD());
             break;
-          case 0x100: cal.SetOtLeftTime(RxMessage);  break;
-          case 0x101: cal.SetOtLeftCur(RxMessage);   break;
-          case 0x102: cal.SetOtRightTime(RxMessage); break;
-          case 0x103: cal.SetOtRightCur(RxMessage);  break;
-          case 0x104: cal.SetBfLeftTime(RxMessage);  break;
-          case 0x105: cal.SetBfLeftCur(RxMessage);   break;
-          case 0x106: cal.SetBfRightTime(RxMessage); break;
-          case 0x107: cal.SetBfRightCur(RxMessage);  break;
-          case 0x108: cal.SetForwardTime(RxMessage); break;
-          case 0x109: cal.SetForwardCur(RxMessage);  break;
-          case 0x10A: cal.SetReverseTime(RxMessage); break;
-          case 0x10B: cal.SetReverseCur(RxMessage);  break;
-          case 0x10C: cal.SetOneTime(RxMessage);     break;
-          case 0x10D: cal.SetOneCur(RxMessage);      break;
-          case 0x10E: cal.SetTwoTime(RxMessage);     break;
-          case 0x10F: cal.SetTwoCur(RxMessage);      break;
-          case 0x110: cal.SetThreeTime(RxMessage);   break;
-          case 0x111: cal.SetThreeCur(RxMessage);    break;
-          case 0x112: cal.Save(cal);                 break;
-          case 0x113: cal.SendData();                break;
+          case 0x100: cal.SetOtLeftTime(RxMsg);  break;
+          case 0x101: cal.SetOtLeftCur(RxMsg);   break;
+          case 0x102: cal.SetOtRightTime(RxMsg); break;
+          case 0x103: cal.SetOtRightCur(RxMsg);  break;
+          case 0x104: cal.SetBfLeftTime(RxMsg);  break;
+          case 0x105: cal.SetBfLeftCur(RxMsg);   break;
+          case 0x106: cal.SetBfRightTime(RxMsg); break;
+          case 0x107: cal.SetBfRightCur(RxMsg);  break;
+          case 0x108: cal.SetForwardTime(RxMsg); break;
+          case 0x109: cal.SetForwardCur(RxMsg);  break;
+          case 0x10A: cal.SetReverseTime(RxMsg); break;
+          case 0x10B: cal.SetReverseCur(RxMsg);  break;
+          case 0x10C: cal.SetOneTime(RxMsg);     break;
+          case 0x10D: cal.SetOneCur(RxMsg);      break;
+          case 0x10E: cal.SetTwoTime(RxMsg);     break;
+          case 0x10F: cal.SetTwoCur(RxMsg);      break;
+          case 0x110: cal.SetThreeTime(RxMsg);   break;
+          case 0x111: cal.SetThreeCur(RxMsg);    break;
+          case 0x112: cal.Save(cal);             break;
+          case 0x113: cal.SendData();            break;
+
+          case 0x120: state = Calibrate::OtLeftV;  break;
+          case 0x121: state = Calibrate::OtRightV; break;
+          case 0x122: state = Calibrate::BfLeftV;  break;
+          case 0x123: state = Calibrate::BfRightV; break;
+          case 0x124: state = Calibrate::ForwardV; break;
+          case 0x125: state = Calibrate::ReverseV; break;
+          case 0x126: state = Calibrate::OneV;     break;
+          case 0x127: state = Calibrate::TwoV;     break;
+          case 0x128: state = Calibrate::ThreeV;   break;
         }
       else
-        switch(RxMessage.ExtId)
+        switch(RxMsg.ExtId)
         {
         case 0x0CF00400:
-          eng.SetRpm((RxMessage.Data[4] * 256 + RxMessage.Data[3]) / 8);
+          eng.SetRpm((RxMsg.Data[4] * 256 + RxMsg.Data[3]) / 8);
           break;
         }
     }

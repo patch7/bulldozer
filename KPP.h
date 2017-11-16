@@ -4,6 +4,7 @@
 #include "stm32f4xx.h"
 #include "stm32f4xx_can.h"
 #include "stm32f4xx_flash.h"
+#include <utility>
 #include "sliding_median.h"
 #include "engine.h"
 
@@ -24,6 +25,9 @@ class Calibrate//Singleton by transform Scott Meyers.
 public:
   friend class KPP;
   typedef SlidingMedian SM;
+
+  enum State{Not, OtLeftV, OtRightV, BfLeftV, BfRightV, ForwardV, ReverseV, OneV, TwoV, ThreeV};
+
   Calibrate(const Calibrate&)            = delete;
   Calibrate(Calibrate&&)                 = delete;
   Calibrate& operator=(const Calibrate&) = delete;
@@ -51,10 +55,20 @@ public:
   void SetThreeCur(CanRxMsg&);
   void SendData();
   void Save(const Calibrate& inst);
+  void SetOtLeftValve(State&);
+  void SetOtRightValve(State&);
+  void SetBfLeftValve(State&);
+  void SetBfRightValve(State&);
+  void SetForwardValve(State&);
+  void SetReverseValve(State&);
+  void SetOneValve(State&);
+  void SetTwoValve(State&);
+  void SetThreeValve(State&);
+  void CurrentSet(const uint16_t*);
   ~Calibrate()                           = default;
 private:
   Calibrate()                            = default;
-  void Send(CanTxMsg&, uint16_t*);
+  void Send(CanTxMsg&, std::pair<uint16_t, uint16_t>*);
 
   static void FlashWrite(const Calibrate&);
   static void FlashRead(Calibrate&);
@@ -64,128 +78,123 @@ private:
   
   struct Data
   {
-    uint16_t OtLeftTime[8]  = {0};
-    uint16_t OtLeftCur[8]   = {0};
-    uint16_t OtRightTime[8] = {0};
-    uint16_t OtRightCur[8]  = {0};
-    uint16_t BfLeftTime[8]  = {0};
-    uint16_t BfLeftCur[8]   = {0};
-    uint16_t BfRightTime[8] = {0};
-    uint16_t BfRightCur[8]  = {0};
-    uint16_t ForwardTime[8] = {0};
-    uint16_t ForwardCur[8]  = {0};
-    uint16_t ReverseTime[8] = {0};
-    uint16_t ReverseCur[8]  = {0};
-    uint16_t OneTime[8]     = {0};
-    uint16_t OneCur[8]      = {0};
-    uint16_t TwoTime[8]     = {0};
-    uint16_t TwoCur[8]      = {0};
-    uint16_t ThreeTime[8]   = {0};
-    uint16_t ThreeCur[8]    = {0};
+    std::pair<uint16_t, uint16_t> OtLeftTimeCur[8];
+    std::pair<uint16_t, uint16_t> OtRightTimeCur[8];
+    std::pair<uint16_t, uint16_t> BfLeftTimeCur[8];
+    std::pair<uint16_t, uint16_t> BfRightTimeCur[8];
+    std::pair<uint16_t, uint16_t> ForwardTimeCur[8];
+    std::pair<uint16_t, uint16_t> ReverseTimeCur[8];
+    std::pair<uint16_t, uint16_t> OneTimeCur[8];
+    std::pair<uint16_t, uint16_t> TwoTimeCur[8];
+    std::pair<uint16_t, uint16_t> ThreeTimeCur[8];
 
-    uint16_t RudMin     = 0;
-    uint16_t RudMax     = 0;
-    uint16_t LeftMin    = 0;
-    uint16_t LeftMax    = 0;
-    uint16_t RightMin   = 0;
-    uint16_t RightMax   = 0;
-    uint16_t BrakeMin   = 0;
-    uint16_t BrakeMax   = 0;
-    uint16_t DecelerMin = 0;
-    uint16_t DecelerMax = 0;
+    //номер каждого элемента массива соответствует значению регистра таймера умноженного на 2.
+    std::pair<uint16_t, uint16_t> OtLeftValve[250];
+    std::pair<uint16_t, uint16_t> OtRightValve[250];
+    std::pair<uint16_t, uint16_t> BfLeftValve[250];
+    std::pair<uint16_t, uint16_t> BfRightValve[250];
+    std::pair<uint16_t, uint16_t> FValve[250];
+    std::pair<uint16_t, uint16_t> RValve[250];
+    std::pair<uint16_t, uint16_t> OneValve[250];
+    std::pair<uint16_t, uint16_t> TwoValve[250];
+    std::pair<uint16_t, uint16_t> ThreeValve[250];
+
+    std::pair<uint16_t, uint16_t> AnalogRemoteCtrl[5];// Rud; Left; Right; Brake; Decl;
   }d;
+
+  SlidingMedian OtL, OtR, BfL, BfR, F, R, One, Two, Three;
 };
 
 inline void Calibrate::Save(const Calibrate& inst) { FlashWrite(inst); }
 inline void Calibrate::SetOtLeftTime(CanRxMsg& RxMessage)
 {
   for(uint8_t i = 0; i < RxMessage.DLC; ++i)
-    d.OtLeftTime[i] = RxMessage.Data[i] * koef;
+    d.OtLeftTimeCur[i].first = RxMessage.Data[i] * koef;
 }
 inline void Calibrate::SetOtLeftCur(CanRxMsg& RxMessage)
 {
   for(uint8_t i = 0; i < RxMessage.DLC; ++i)
-    d.OtLeftCur[i] = RxMessage.Data[i] * koef;
+    d.OtLeftTimeCur[i].second = RxMessage.Data[i] * koef;
 }
 inline void Calibrate::SetOtRightTime(CanRxMsg& RxMessage)
 {
   for(uint8_t i = 0; i < RxMessage.DLC; ++i)
-    d.OtRightTime[i] = RxMessage.Data[i] * koef;
+    d.OtRightTimeCur[i].first = RxMessage.Data[i] * koef;
 }
 inline void Calibrate::SetOtRightCur(CanRxMsg& RxMessage)
 {
   for(uint8_t i = 0; i < RxMessage.DLC; ++i)
-    d.OtRightCur[i] = RxMessage.Data[i] * koef;
+    d.OtRightTimeCur[i].second = RxMessage.Data[i] * koef;
 }
 inline void Calibrate::SetBfLeftTime(CanRxMsg& RxMessage)
 {
   for(uint8_t i = 0; i < RxMessage.DLC; ++i)
-    d.BfLeftTime[i] = RxMessage.Data[i] * koef;
+    d.BfLeftTimeCur[i].first = RxMessage.Data[i] * koef;
 }
 inline void Calibrate::SetBfLeftCur(CanRxMsg& RxMessage)
 {
   for(uint8_t i = 0; i < RxMessage.DLC; ++i)
-    d.BfLeftCur[i] = RxMessage.Data[i] * koef;
+    d.BfLeftTimeCur[i].second = RxMessage.Data[i] * koef;
 }
 inline void Calibrate::SetBfRightTime(CanRxMsg& RxMessage)
 {
   for(uint8_t i = 0; i < RxMessage.DLC; ++i)
-    d.BfRightTime[i] = RxMessage.Data[i] * koef;
+    d.BfRightTimeCur[i].first = RxMessage.Data[i] * koef;
 }
 inline void Calibrate::SetBfRightCur(CanRxMsg& RxMessage)
 {
   for(uint8_t i = 0; i < RxMessage.DLC; ++i)
-    d.BfRightCur[i] = RxMessage.Data[i] * koef;
+    d.BfRightTimeCur[i].second = RxMessage.Data[i] * koef;
 }
 inline void Calibrate::SetForwardTime(CanRxMsg& RxMessage)
 {
   for(uint8_t i = 0; i < RxMessage.DLC; ++i)
-    d.ForwardTime[i] = RxMessage.Data[i] * koef;
+    d.ForwardTimeCur[i].first = RxMessage.Data[i] * koef;
 }
 inline void Calibrate::SetForwardCur(CanRxMsg& RxMessage)
 {
   for(uint8_t i = 0; i < RxMessage.DLC; ++i)
-    d.ForwardCur[i] = RxMessage.Data[i] * koef;
+    d.ForwardTimeCur[i].second = RxMessage.Data[i] * koef;
 }
 inline void Calibrate::SetReverseTime(CanRxMsg& RxMessage)
 {
   for(uint8_t i = 0; i < RxMessage.DLC; ++i)
-    d.ReverseTime[i] = RxMessage.Data[i] * koef;
+    d.ReverseTimeCur[i].first = RxMessage.Data[i] * koef;
 }
 inline void Calibrate::SetReverseCur(CanRxMsg& RxMessage)
 {
   for(uint8_t i = 0; i < RxMessage.DLC; ++i)
-    d.ReverseCur[i] = RxMessage.Data[i] * koef;
+    d.ReverseTimeCur[i].second = RxMessage.Data[i] * koef;
 }
 inline void Calibrate::SetOneTime(CanRxMsg& RxMessage)
 {
   for(uint8_t i = 0; i < RxMessage.DLC; ++i)
-    d.OneTime[i] = RxMessage.Data[i] * koef;
+    d.OneTimeCur[i].first = RxMessage.Data[i] * koef;
 }
 inline void Calibrate::SetOneCur(CanRxMsg& RxMessage)
 {
   for(uint8_t i = 0; i < RxMessage.DLC; ++i)
-    d.OneCur[i] = RxMessage.Data[i] * koef;
+    d.OneTimeCur[i].second = RxMessage.Data[i] * koef;
 }
 inline void Calibrate::SetTwoTime(CanRxMsg& RxMessage)
 {
   for(uint8_t i = 0; i < RxMessage.DLC; ++i)
-    d.TwoTime[i] = RxMessage.Data[i] * koef;
+    d.TwoTimeCur[i].first = RxMessage.Data[i] * koef;
 }
 inline void Calibrate::SetTwoCur(CanRxMsg& RxMessage)
 {
   for(uint8_t i = 0; i < RxMessage.DLC; ++i)
-    d.TwoCur[i] = RxMessage.Data[i] * koef;
+    d.TwoTimeCur[i].second = RxMessage.Data[i] * koef;
 }
 inline void Calibrate::SetThreeTime(CanRxMsg& RxMessage)
 {
   for(uint8_t i = 0; i < RxMessage.DLC; ++i)
-    d.ThreeTime[i] = RxMessage.Data[i] * koef;
+    d.ThreeTimeCur[i].first = RxMessage.Data[i] * koef;
 }
 inline void Calibrate::SetThreeCur(CanRxMsg& RxMessage)
 {
   for(uint8_t i = 0; i < RxMessage.DLC; ++i)
-    d.ThreeCur[i] = RxMessage.Data[i] * koef;
+    d.ThreeTimeCur[i].second = RxMessage.Data[i] * koef;
 }
 
 //все методы класса необходимо пересмотреть после создания общей структуры!!!
@@ -225,11 +234,11 @@ public:
   void AnalogSet(const uint16_t*);
   void SendMsg();
 
-  SlidingMedian& GetThrot();
-  SlidingMedian& GetLeft();
-  SlidingMedian& GetRight();
-  SlidingMedian& GetBrake();
-  SlidingMedian& GetDecel();
+  SlidingMedian& GetT();
+  SlidingMedian& GetL();
+  SlidingMedian& GetR();
+  SlidingMedian& GetB();
+  SlidingMedian& GetD();
 private:
   void PropBrakeR(const uint8_t)                   const;
   void PropBrakeL(const uint8_t)                   const;
@@ -290,11 +299,11 @@ private:
 };
 
 //inline методы должны быть включены в каждую трансляцию, так что лучше их определять в заголовке.
-inline SlidingMedian& KPP::GetThrot() { return SMthrottle; }
-inline SlidingMedian& KPP::GetLeft()  { return SMleft; }
-inline SlidingMedian& KPP::GetRight() { return SMright; }
-inline SlidingMedian& KPP::GetBrake() { return SMbrake; }
-inline SlidingMedian& KPP::GetDecel() { return SMdeceler; }
+inline SlidingMedian& KPP::GetT() { return SMthrottle; }
+inline SlidingMedian& KPP::GetL() { return SMleft; }
+inline SlidingMedian& KPP::GetR() { return SMright; }
+inline SlidingMedian& KPP::GetB() { return SMbrake; }
+inline SlidingMedian& KPP::GetD() { return SMdeceler; }
 
 inline void KPP::ResetOtL() const     { TIM_SetCompare1(TIM4, 500); }
 inline void KPP::SetOtL() const       { TIM_SetCompare1(TIM4, 0); }
