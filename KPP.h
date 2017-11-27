@@ -16,6 +16,8 @@ const static uint8_t MINUS = 2;
 const static uint8_t OFF   = 0;
 const static uint8_t ON    = 1;
 
+union Pressure{ uint32_t i; float f; };
+
 class Calibrate
 {
 public:
@@ -77,15 +79,15 @@ public:
   void ThreeTime(CanRxMsg&);
   void ThreeCur(CanRxMsg&);
 
-  void OtLeftValve(State&);
-  void OtRightValve(State&);
-  void BfLeftValve(State&);
-  void BfRightValve(State&);
-  void ForwardValve(State&);
-  void ReverseValve(State&);
-  void OneValve(State&);
-  void TwoValve(State&);
-  void ThreeValve(State&);
+  void OtLeftValve(State&, Pressure);
+  void OtRightValve(State&, Pressure);
+  void BfLeftValve(State&, Pressure);
+  void BfRightValve(State&, Pressure);
+  void ForwardValve(State&, Pressure);
+  void ReverseValve(State&, Pressure);
+  void OneValve(State&, Pressure);
+  void TwoValve(State&, Pressure);
+  void ThreeValve(State&, Pressure);
 
   void Save();
   ~Calibrate()                           = default;
@@ -124,7 +126,7 @@ private:
 
   SM Left, Right, Throt, Brake, Decel, Temp, OtL, OtR, BfL, BfR, F, R, One, Two, Three;
 
-  const uint8_t koef    = 4;
+  const uint8_t koef = 4;
 
   uint8_t direction  : 2;//00 - N,    01 - F,   10 - R,    11 - Not available
   uint8_t clutch_st  : 2;//00 - none, 01 - '+', 10 - '-',  11 - Not available

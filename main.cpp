@@ -39,6 +39,7 @@ void TIM_PWMInit(void);
 void TimerInit(void);
 void FlashInit(void);
 
+Pressure pres;
 Calibrate::State state = Calibrate::Not;
 Calibrate cal(9);
 Engine    eng;
@@ -458,15 +459,15 @@ extern "C"
         //калибровка клапана в автоматическом режиме по условию!
         switch(state)
         {//калибровку клапанов необходимо проводить на каждую точку в 100 мс, чтобы компенсировать задержку реакции клапана.
-          case Calibrate::OtLeftV:  cal.OtLeftValve(state);  break;
-          case Calibrate::OtRightV: cal.OtRightValve(state); break;
-          case Calibrate::BfLeftV:  cal.BfLeftValve(state);  break;
-          case Calibrate::BfRightV: cal.BfRightValve(state); break;
-          case Calibrate::ForwardV: cal.ForwardValve(state); break;
-          case Calibrate::ReverseV: cal.ReverseValve(state); break;
-          case Calibrate::OneV:     cal.OneValve(state);     break;
-          case Calibrate::TwoV:     cal.TwoValve(state);     break;
-          case Calibrate::ThreeV:   cal.ThreeValve(state);   break;
+          case Calibrate::OtLeftV:  cal.OtLeftValve(state, pres);  break;
+          case Calibrate::OtRightV: cal.OtRightValve(state, pres); break;
+          case Calibrate::BfLeftV:  cal.BfLeftValve(state, pres);  break;
+          case Calibrate::BfRightV: cal.BfRightValve(state, pres); break;
+          case Calibrate::ForwardV: cal.ForwardValve(state, pres); break;
+          case Calibrate::ReverseV: cal.ReverseValve(state, pres); break;
+          case Calibrate::OneV:     cal.OneValve(state, pres);     break;
+          case Calibrate::TwoV:     cal.TwoValve(state, pres);     break;
+          case Calibrate::ThreeV:   cal.ThreeValve(state, pres);   break;
         }
       }
     }
@@ -516,6 +517,11 @@ extern "C"
           case 0x126: state = Calibrate::OneV;                                   break;
           case 0x127: state = Calibrate::TwoV;                                   break;
           case 0x128: state = Calibrate::ThreeV;                                 break;
+
+          case 0x181:
+            pres.i = RxMsg.Data[3] << 24 | RxMsg.Data[2] << 16 | RxMsg.Data[1] << 8 |RxMsg.Data[0];
+            if(pres.f < 0) pres.f = 0;
+            break;
         }
       else
         switch(RxMsg.ExtId)

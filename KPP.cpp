@@ -184,7 +184,7 @@ void KPP::SendData(Calibrate& cal)//Good
 //////////       //       //    //  ||  \\||     //     // //    //    //  //            //////////
 //////////       ///////   //////   ||   \ |     //     //   //   //////   ///////       //////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void KPP::Parking(const uint16_t rpm, Calibrate& cal)//Проверить на соответствие с логикой пропорционального управл
+void KPP::Parking(const uint16_t rpm, Calibrate& cal)//Проверить на пропорциональное управление
 {
   if(cal.parking == ON && cal.parking_ch)
   {
@@ -220,7 +220,7 @@ void KPP::ResetAllClutch() const//Проверить на логику проп.
   ResetSecond();
   ResetThird();
 }
-void KPP::SetClutch(const uint16_t rpm, Calibrate& cal)//Проверить на логику пропорционального управления
+void KPP::SetClutch(const uint16_t rpm, Calibrate& cal)//Проверить на пропорциональное управление
 {
   if(cal.parking == OFF && cal.clutch_st == PLUS && cal.clutch < 3 && rpm > 350)//магическое число
   {//за счет времени спада давления в бустере передачи, алгоритм будет соответствовать ТТ, т.е. включается необходимая передача и через 100 мс выключается предыдущая. Так ли надо управлять???
@@ -268,7 +268,7 @@ void KPP::SetDirection(const uint8_t dir) const//Проверить нужен �
   else if(dir == R)
     SetReverse();
 }
-void KPP::SwitchDirection(Engine& eng, Calibrate& cal)//Good исправить в соответствии с коментариями
+void KPP::SwitchDirection(Engine& eng, Calibrate& cal)//Good привести в соответствии с коментариями
 {
   if(cal.direct_ch && cal.parking == OFF)
   {
@@ -483,13 +483,13 @@ void Calibrate::RemoteCtrl(uint8_t state)//Good
     case 0x45: d.AnalogRemoteCtrl[4].second = Decel.get(); break;//max
   }
 }
-void Calibrate::OtLeftValve(State& state)//Заготовка для авто калибровки клапанов, доделать!!!
+void Calibrate::OtLeftValve(State& state, Pressure pres)//Калибровка клапана, проверить!!!
 {
   static uint8_t count = 0;
   if(count != 0 && count <= 250)//магическое число
   {
-    d.OtLeftValve[count - 1].first  = OtL.get();
-    d.OtLeftValve[count - 1].second = 0;//текущее давление
+    d.OtLeftValve[count - 1].first  = count;//по сути ненужно для нового алгоритма
+    d.OtLeftValve[count - 1].second = static_cast<uint16_t>(pres.f * 10);//current pressure
     if(count == 250)//магическое число
     {
       state = Not;
@@ -500,16 +500,16 @@ void Calibrate::OtLeftValve(State& state)//Заготовка для авто к
   TIM_SetCompare1(TIM4, 2 + count * 2);//магическое число
   ++count;
 }
-void Calibrate::OtRightValve(State& state)//Заготовка для авто калибровки клапанов, доделать!!!
+void Calibrate::OtRightValve(State& state, Pressure pres)//Калибровка клапана, проверить!!!
 {
   static uint8_t count = 0;
   if(count != 0 && count <= 250)//магическое число
   {
-    d.OtRightValve[count - 1].first  = OtR.get();
-    d.OtRightValve[count - 1].second = 0;//текущее давление
+    d.OtRightValve[count - 1].first  = count;
+    d.OtRightValve[count - 1].second = static_cast<uint16_t>(pres.f * 10);//current pressure
     if(count == 250)//магическое число
     {
-      //state = false;
+      state = Not;
       TIM_SetCompare2(TIM4, count = 0);
       return;
     }
@@ -517,16 +517,16 @@ void Calibrate::OtRightValve(State& state)//Заготовка для авто �
   TIM_SetCompare2(TIM4, 2 + count * 2);//магическое число
   ++count;
 }
-void Calibrate::BfLeftValve(State& state)//Заготовка для авто калибровки клапанов, доделать!!!
+void Calibrate::BfLeftValve(State& state, Pressure pres)//Калибровка клапана, проверить!!!
 {
   static uint8_t count = 0;
   if(count != 0 && count <= 250)//магическое число
   {
-    d.BfLeftValve[count - 1].first  = BfL.get();
-    d.BfLeftValve[count - 1].second = 0;//текущее давление
+    d.BfLeftValve[count - 1].first  = count;
+    d.BfLeftValve[count - 1].second = static_cast<uint16_t>(pres.f * 10);//current pressure
     if(count == 250)//магическое число
     {
-      //state = false;
+      state = Not;
       TIM_SetCompare3(TIM4, count = 0);
       return;
     }
@@ -534,16 +534,16 @@ void Calibrate::BfLeftValve(State& state)//Заготовка для авто к
   TIM_SetCompare3(TIM4, 2 + count * 2);//магическое число
   ++count;
 }
-void Calibrate::BfRightValve(State& state)//Заготовка для авто калибровки клапанов, доделать!!!
+void Calibrate::BfRightValve(State& state, Pressure pres)//Калибровка клапана, проверить!!!
 {
   static uint8_t count = 0;
   if(count != 0 && count <= 250)//магическое число
   {
-    d.BfRightValve[count - 1].first  = BfR.get();
-    d.BfRightValve[count - 1].second = 0;//текущее давление
+    d.BfRightValve[count - 1].first  = count;
+    d.BfRightValve[count - 1].second = static_cast<uint16_t>(pres.f * 10);//current pressure
     if(count == 250)//магическое число
     {
-      //state = false;
+      state = Not;
       TIM_SetCompare4(TIM4, count = 0);
       return;
     }
@@ -551,16 +551,16 @@ void Calibrate::BfRightValve(State& state)//Заготовка для авто �
   TIM_SetCompare4(TIM4, 2 + count * 2);//магическое число
   ++count;
 }
-void Calibrate::ForwardValve(State& state)//Заготовка для авто калибровки клапанов, доделать!!!
+void Calibrate::ForwardValve(State& state, Pressure pres)//Калибровка клапана, проверить!!!
 {
   static uint8_t count = 0;
   if(count != 0 && count <= 250)//магическое число
   {
-    d.FValve[count - 1].first  = F.get();
-    d.FValve[count - 1].second = 0;//текущее давление
+    d.FValve[count - 1].first  = count;
+    d.FValve[count - 1].second = static_cast<uint16_t>(pres.f * 10);//current pressure
     if(count == 250)//магическое число
     {
-      //state = false;
+      state = Not;
       TIM_SetCompare4(TIM3, count = 0);
       return;
     }
@@ -568,16 +568,16 @@ void Calibrate::ForwardValve(State& state)//Заготовка для авто �
   TIM_SetCompare4(TIM3, 2 + count * 2);//магическое число
   ++count;
 }
-void Calibrate::ReverseValve(State& state)//Заготовка для авто калибровки клапанов, доделать!!!
+void Calibrate::ReverseValve(State& state, Pressure pres)//Калибровка клапана, проверить!!!
 {
   static uint8_t count = 0;
   if(count != 0 && count <= 250)//магическое число
   {
-    d.RValve[count - 1].first  = F.get();
-    d.RValve[count - 1].second = 0;//текущее давление
+    d.RValve[count - 1].first  = count;
+    d.RValve[count - 1].second = static_cast<uint16_t>(pres.f * 10);//current pressure
     if(count == 250)//магическое число
     {
-      //state = false;
+      state = Not;
       TIM_SetCompare2(TIM1, count = 0);
       return;
     }
@@ -585,16 +585,16 @@ void Calibrate::ReverseValve(State& state)//Заготовка для авто �
   TIM_SetCompare2(TIM1, 2 + count * 2);//магическое число
   ++count;
 }
-void Calibrate::OneValve(State& state)//Заготовка для авто калибровки клапанов, доделать!!!
+void Calibrate::OneValve(State& state, Pressure pres)//Калибровка клапана, проверить!!!
 {
   static uint8_t count = 0;
   if(count != 0 && count <= 250)//магическое число
   {
-    d.OneValve[count - 1].first  = One.get();
-    d.OneValve[count - 1].second = 0;//текущее давление
+    d.OneValve[count - 1].first  = count;
+    d.OneValve[count - 1].second = static_cast<uint16_t>(pres.f * 10);//current pressure
     if(count == 250)//магическое число
     {
-      //state = false;
+      state = Not;
       TIM_SetCompare1(TIM3, count = 0);
       return;
     }
@@ -602,16 +602,16 @@ void Calibrate::OneValve(State& state)//Заготовка для авто ка�
   TIM_SetCompare1(TIM3, 2 + count * 2);//магическое число
   ++count;
 }
-void Calibrate::TwoValve(State& state)//Заготовка для авто калибровки клапанов, доделать!!!
+void Calibrate::TwoValve(State& state, Pressure pres)//Калибровка клапана, проверить!!!
 {
   static uint8_t count = 0;
   if(count != 0 && count <= 250)//магическое число
   {
-    d.TwoValve[count - 1].first  = Two.get();
-    d.TwoValve[count - 1].second = 0;//текущее давление
+    d.TwoValve[count - 1].first  = count;
+    d.TwoValve[count - 1].second = static_cast<uint16_t>(pres.f * 10);//current pressure
     if(count == 250)//магическое число
     {
-      //state = false;
+      state = Not;
       TIM_SetCompare2(TIM3, count = 0);
       return;
     }
@@ -619,16 +619,16 @@ void Calibrate::TwoValve(State& state)//Заготовка для авто ка�
   TIM_SetCompare2(TIM3, 2 + count * 2);//магическое число
   ++count;
 }
-void Calibrate::ThreeValve(State& state)//Заготовка для авто калибровки клапанов, доделать!!!
+void Calibrate::ThreeValve(State& state, Pressure pres)//Калибровка клапана, проверить!!!
 {
   static uint8_t count = 0;
   if(count != 0 && count <= 250)//магическое число
   {
-    d.ThreeValve[count - 1].first  = Three.get();
-    d.ThreeValve[count - 1].second = 0;//текущее давление
+    d.ThreeValve[count - 1].first  = count;
+    d.ThreeValve[count - 1].second = static_cast<uint16_t>(pres.f * 10);//current pressure
     if(count == 250)//магическое число
     {
-      //state = false;
+      state = Not;
       TIM_SetCompare3(TIM3, count = 0);
       return;
     }
