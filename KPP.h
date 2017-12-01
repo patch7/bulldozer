@@ -5,6 +5,7 @@
 #include "stm32f4xx_can.h"
 #include "stm32f4xx_flash.h"
 #include <utility>
+#include <array>
 #include "sliding_median.h"
 #include "engine.h"
 
@@ -22,7 +23,7 @@ class Calibrate
 {
 public:
   friend class KPP;
-  typedef SlidingMedian SM;
+  typedef SlidingMedian<uint16_t> SM;
 
   enum State{Not, OtLeftV, OtRightV, BfLeftV, BfRightV, ForwardV, ReverseV, OneV, TwoV, ThreeV};
 
@@ -42,6 +43,7 @@ public:
     One(sizef),
     Two(sizef),
     Three(sizef),
+    PresFilter(7),
     d_generator(0),
     old_direct(0),
     oil_filter(0),
@@ -110,21 +112,20 @@ private:
     std::pair<uint16_t, uint16_t> TwoTimeCur[8];
     std::pair<uint16_t, uint16_t> ThreeTimeCur[8];
 
-    //номер каждого элемента массива соответствует значению регистра таймера умноженного на 2.
-    std::pair<uint16_t, uint16_t> OtLeftValve[250];
-    std::pair<uint16_t, uint16_t> OtRightValve[250];
-    std::pair<uint16_t, uint16_t> BfLeftValve[250];
-    std::pair<uint16_t, uint16_t> BfRightValve[250];
-    std::pair<uint16_t, uint16_t> FValve[250];
-    std::pair<uint16_t, uint16_t> RValve[250];
-    std::pair<uint16_t, uint16_t> OneValve[250];
-    std::pair<uint16_t, uint16_t> TwoValve[250];
-    std::pair<uint16_t, uint16_t> ThreeValve[250];
-
     std::pair<uint16_t, uint16_t> AnalogRemoteCtrl[5];// Rud; Left; Right; Brake; Decl;
+    //номер каждого элемента массива соответствует значению регистра таймера умноженного на 4, в каждом массиве храним значение давления умноженное на 10. Можно сделать массив array(ев) и только 1 функцию калибровки (обращаться по индексу).
+    std::array<uint16_t, 125> OtLeftValve;
+    std::array<uint16_t, 125> OtRightValve;
+    std::array<uint16_t, 125> BfLeftValve;
+    std::array<uint16_t, 125> BfRightValve;
+    std::array<uint16_t, 125> FValve;
+    std::array<uint16_t, 125> RValve;
+    std::array<uint16_t, 125> OneValve;
+    std::array<uint16_t, 125> TwoValve;
+    std::array<uint16_t, 125> ThreeValve;
   }d;
 
-  SM Left, Right, Throt, Brake, Decel, Temp, OtL, OtR, BfL, BfR, F, R, One, Two, Three;
+  SM Left, Right, Throt, Brake, Decel, Temp, OtL, OtR, BfL, BfR, F, R, One, Two, Three, PresFilter;
 
   const uint8_t koef = 4;
 

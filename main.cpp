@@ -101,13 +101,11 @@ void MaxAllRccBusConfig()
     while(RCC_GetSYSCLKSource() != 8) {}
   }
 }
-
 void FlashInit()
 {
   FLASH_PrefetchBufferCmd(ENABLE);
   FLASH_SetLatency(FLASH_Latency_5);
 }
-
 //Настраиваем модуль DMA2 для автоматической обработки всех каналов АЦП3 и АЦП2
 void DMAforADCInit()
 {
@@ -151,7 +149,6 @@ void DMAforADCInit()
   NVIC_InitStruct.NVIC_IRQChannel                   = DMA2_Stream2_IRQn;
   NVIC_Init(&NVIC_InitStruct);
 }
-
 /******************************************************************************
 Настраиваем АЦП3 каналы 4, 6 - 8, 10, 11 на преобразование по прерыванию таймера 2 ОС2. Чтобы прерывание срабатывало в 2 раза быстрее таймера 2, было настроенно прерывание по спаду и нарастанию сигнала(ADC_ExternalTrigConvEdge_RisingFalling). Это необходимо для улучшения отклика системы на управление потенциометром.
 ******************************************************************************/
@@ -223,7 +220,6 @@ void ADCInputInit()
   ADC_SoftwareStartConv(ADC3);
   ADC_SoftwareStartConv(ADC2);
 }
-
 /******************************************************************************
 Настраиваем таймер 2 и 7 для прерывания ADC и подсчета времени. Увеличена скорость прерывания канала по средствам установки реакции по спадающему и нарастающему фронту сигнала одновременно(ADC_ExternalTrigConvEdge_RisingFalling) для обработки с помощью DMA каналов АЦП и чтобы за время прерывания таймера 2, успел заполниться класс скользящей медианы.
 ******************************************************************************/
@@ -263,7 +259,6 @@ void TimerInit()
   TIM_Cmd(TIM2, ENABLE);
   TIM_Cmd(TIM7, ENABLE);
 }
-
 void CANInit()
 {
   CAN_DeInit(CAN1);
@@ -332,7 +327,6 @@ void CANInit()
 
   CAN_ITConfig(CAN2, CAN_IT_FMP0, ENABLE);
 }
-
 void TIM_PWMInit()
 {
   TIM_DeInit(TIM1);
@@ -408,7 +402,7 @@ void TIM_PWMInit()
 
 extern "C"
 {
-  /*Без обработчика прерывания не работает DMA. Обработчик прерывания привязан ко второму каналу таймера 2. Закидываем принятые значения(РУД, Тормоз, Диселератор, Влево, Вправо, Температура) с АЦП в фильтр скользящей медианы.*/
+  /*Без обработчика прерывания не работает DMA. Обработчик прерывания привязан ко второму каналу таймера 2. Заполняем значения аналоговых органов управления с АЦП в фильтр скользящей медианы.*/
   void DMA2_Stream0_IRQHandler()
   {
     if(DMA_GetITStatus(DMA2_Stream0, DMA_IT_TCIF0))
@@ -417,6 +411,7 @@ extern "C"
       kpp.AnalogSet(ADCValue, cal);
     }
   }
+  //Заполняем значения токов на клапанах с АЦП в фильтр скользящей медианы.
   void DMA2_Stream2_IRQHandler()
   {
     if(DMA_GetITStatus(DMA2_Stream2, DMA_IT_TCIF2))
@@ -425,15 +420,11 @@ extern "C"
       kpp.CurrentSet(ADCPWM, cal);
     }
   }
-  
-  void TIM2_IRQHandler()//Прерывание по таймеру 2 - 20 мс
+  void TIM2_IRQHandler()
   {
     if(TIM_GetITStatus(TIM2, TIM_IT_Update))
-    {
       TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
-    }
   }
-  
   //Прерывание по TIM7-1 мс. Ведем отсчет времени, шлем в CAN аналоговые и дискретные сигналы.
   void TIM7_IRQHandler()
   {
@@ -445,20 +436,9 @@ extern "C"
       if(!(time_ms % 10))
       {
         //управление клапанами в пропорциональном режиме
-      }
-      if(!(time_ms % 50))
-      {
-        kpp.Send(cal);
-      }
-      if(!(time_ms % 99))
-      {
-        kpp.Parking(eng.GetRpm(), cal);
-        kpp.SetClutch(eng.GetRpm(), cal);
-        kpp.SwitchDirection(eng, cal);
-        kpp.BrakeRotate(cal);
         //калибровка клапана в автоматическом режиме по условию!
         switch(state)
-        {//калибровку клапанов необходимо проводить на каждую точку в 100 мс, чтобы компенсировать задержку реакции клапана.
+        {//калибровку клапанов надо проводить на каждую точку в 220 мс, чтобы компенсировать задержку реакции клапана 150 мс и 70 мс для фильтрации давления.
           case Calibrate::OtLeftV:  cal.OtLeftValve(state, pres);  break;
           case Calibrate::OtRightV: cal.OtRightValve(state, pres); break;
           case Calibrate::BfLeftV:  cal.BfLeftValve(state, pres);  break;
@@ -469,6 +449,16 @@ extern "C"
           case Calibrate::TwoV:     cal.TwoValve(state, pres);     break;
           case Calibrate::ThreeV:   cal.ThreeValve(state, pres);   break;
         }
+      }
+      if(!(time_ms % 50))
+        kpp.Send(cal);
+      
+      if(!(time_ms % 99))
+      {
+        kpp.Parking(eng.GetRpm(), cal);
+        kpp.SetClutch(eng.GetRpm(), cal);
+        kpp.SwitchDirection(eng, cal);
+        kpp.BrakeRotate(cal);
       }
     }
   }

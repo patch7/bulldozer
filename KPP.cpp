@@ -483,21 +483,28 @@ void Calibrate::RemoteCtrl(uint8_t state)//Good
     case 0x45: d.AnalogRemoteCtrl[4].second = Decel.get(); break;//max
   }
 }
-void Calibrate::OtLeftValve(State& state, Pressure pres)//Калибровка клапана, проверить!!!
+//Функция вызывается раз в 10 мс, каждый 22-й вызов сохраняет давление и увеличивает ток клапана. После каждого увеличения тока на клапане, происходит ожидание задержки реакции электромагнита (100 мс, запас в 25 мс) и реакции клапана (стабилизации давления 50 мс, запас 25 мс). Далее в течении 70 мс (т.е. 7 раз) записывается текущее значение давления в фильтр скользящей медианы. После заполнения фильтра увеличиваем ток и записываем давление в таблицу соответствия тока давлению.
+void Calibrate::OtLeftValve(State& state, Pressure pres)
 {
-  static uint8_t count = 0;
-  if(count != 0 && count <= 250)//магическое число
+  const uint8_t cycle_time   = 22;// 22 * 10 = 220 мс
+  const uint8_t current_step = 4; // 500 / 4 = 125 точек
+  static uint16_t count      = 0;
+
+  if(!(count % cycle_time) && count / cycle_time <= d.OtLeftValve.size())
   {
-    d.OtLeftValve[count - 1].first  = count;//по сути ненужно для нового алгоритма
-    d.OtLeftValve[count - 1].second = static_cast<uint16_t>(pres.f * 10);//current pressure
-    if(count == 250)//магическое число
+    if(count / cycle_time == d.OtLeftValve.size())//если последняя точка
     {
+      d.OtLeftValve[(count / cycle_time) - 1] = PresFilter.get();
       state = Not;
       TIM_SetCompare1(TIM4, count = 0);
       return;
     }
+    TIM_SetCompare1(TIM4, current_step + (current_step * count / cycle_time));
+    if(count > 0)
+      d.OtLeftValve[(count / cycle_time) - 1] = PresFilter.get();
   }
-  TIM_SetCompare1(TIM4, 2 + count * 2);//магическое число
+  if(count >= 15 + cycle_time * (count / cycle_time))//магическое число
+    PresFilter.push(static_cast<uint16_t>(pres.f * 10));
   ++count;
 }
 void Calibrate::OtRightValve(State& state, Pressure pres)//Калибровка клапана, проверить!!!
@@ -505,8 +512,8 @@ void Calibrate::OtRightValve(State& state, Pressure pres)//Калибровка 
   static uint8_t count = 0;
   if(count != 0 && count <= 250)//магическое число
   {
-    d.OtRightValve[count - 1].first  = count;
-    d.OtRightValve[count - 1].second = static_cast<uint16_t>(pres.f * 10);//current pressure
+    d.OtRightValve[count - 1] = count;
+    d.OtRightValve[count - 1] = static_cast<uint16_t>(pres.f * 10);//current pressure
     if(count == 250)//магическое число
     {
       state = Not;
@@ -522,8 +529,8 @@ void Calibrate::BfLeftValve(State& state, Pressure pres)//Калибровка �
   static uint8_t count = 0;
   if(count != 0 && count <= 250)//магическое число
   {
-    d.BfLeftValve[count - 1].first  = count;
-    d.BfLeftValve[count - 1].second = static_cast<uint16_t>(pres.f * 10);//current pressure
+    d.BfLeftValve[count - 1] = count;
+    d.BfLeftValve[count - 1] = static_cast<uint16_t>(pres.f * 10);//current pressure
     if(count == 250)//магическое число
     {
       state = Not;
@@ -539,8 +546,8 @@ void Calibrate::BfRightValve(State& state, Pressure pres)//Калибровка 
   static uint8_t count = 0;
   if(count != 0 && count <= 250)//магическое число
   {
-    d.BfRightValve[count - 1].first  = count;
-    d.BfRightValve[count - 1].second = static_cast<uint16_t>(pres.f * 10);//current pressure
+    d.BfRightValve[count - 1] = count;
+    d.BfRightValve[count - 1] = static_cast<uint16_t>(pres.f * 10);//current pressure
     if(count == 250)//магическое число
     {
       state = Not;
@@ -556,8 +563,8 @@ void Calibrate::ForwardValve(State& state, Pressure pres)//Калибровка 
   static uint8_t count = 0;
   if(count != 0 && count <= 250)//магическое число
   {
-    d.FValve[count - 1].first  = count;
-    d.FValve[count - 1].second = static_cast<uint16_t>(pres.f * 10);//current pressure
+    d.FValve[count - 1] = count;
+    d.FValve[count - 1] = static_cast<uint16_t>(pres.f * 10);//current pressure
     if(count == 250)//магическое число
     {
       state = Not;
@@ -573,8 +580,8 @@ void Calibrate::ReverseValve(State& state, Pressure pres)//Калибровка 
   static uint8_t count = 0;
   if(count != 0 && count <= 250)//магическое число
   {
-    d.RValve[count - 1].first  = count;
-    d.RValve[count - 1].second = static_cast<uint16_t>(pres.f * 10);//current pressure
+    d.RValve[count - 1] = count;
+    d.RValve[count - 1] = static_cast<uint16_t>(pres.f * 10);//current pressure
     if(count == 250)//магическое число
     {
       state = Not;
@@ -590,8 +597,8 @@ void Calibrate::OneValve(State& state, Pressure pres)//Калибровка кл
   static uint8_t count = 0;
   if(count != 0 && count <= 250)//магическое число
   {
-    d.OneValve[count - 1].first  = count;
-    d.OneValve[count - 1].second = static_cast<uint16_t>(pres.f * 10);//current pressure
+    d.OneValve[count - 1] = count;
+    d.OneValve[count - 1] = static_cast<uint16_t>(pres.f * 10);//current pressure
     if(count == 250)//магическое число
     {
       state = Not;
@@ -607,8 +614,8 @@ void Calibrate::TwoValve(State& state, Pressure pres)//Калибровка кл
   static uint8_t count = 0;
   if(count != 0 && count <= 250)//магическое число
   {
-    d.TwoValve[count - 1].first  = count;
-    d.TwoValve[count - 1].second = static_cast<uint16_t>(pres.f * 10);//current pressure
+    d.TwoValve[count - 1] = count;
+    d.TwoValve[count - 1] = static_cast<uint16_t>(pres.f * 10);//current pressure
     if(count == 250)//магическое число
     {
       state = Not;
@@ -624,8 +631,8 @@ void Calibrate::ThreeValve(State& state, Pressure pres)//Калибровка к
   static uint8_t count = 0;
   if(count != 0 && count <= 250)//магическое число
   {
-    d.ThreeValve[count - 1].first  = count;
-    d.ThreeValve[count - 1].second = static_cast<uint16_t>(pres.f * 10);//current pressure
+    d.ThreeValve[count - 1] = count;
+    d.ThreeValve[count - 1] = static_cast<uint16_t>(pres.f * 10);//current pressure
     if(count == 250)//магическое число
     {
       state = Not;
