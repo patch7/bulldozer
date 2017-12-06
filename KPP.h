@@ -7,7 +7,6 @@
 #include <utility>
 #include <array>
 #include "sliding_median.h"
-#include "engine.h"
 
 const static uint8_t N     = 0;
 const static uint8_t F     = 1;
@@ -80,17 +79,7 @@ public:
   void TwoCur(CanRxMsg&);
   void ThreeTime(CanRxMsg&);
   void ThreeCur(CanRxMsg&);
-
-  void OtLeftValve(State&, Pressure);
-  void OtRightValve(State&, Pressure);
-  void BfLeftValve(State&, Pressure);
-  void BfRightValve(State&, Pressure);
-  void ForwardValve(State&, Pressure);
-  void ReverseValve(State&, Pressure);
-  void OneValve(State&, Pressure);
-  void TwoValve(State&, Pressure);
-  void ThreeValve(State&, Pressure);
-
+  void Valve(State&, Pressure);
   void Save();
   ~Calibrate()                           = default;
 private:
@@ -111,18 +100,10 @@ private:
     std::pair<uint16_t, uint16_t> OneTimeCur[8];
     std::pair<uint16_t, uint16_t> TwoTimeCur[8];
     std::pair<uint16_t, uint16_t> ThreeTimeCur[8];
-
     std::pair<uint16_t, uint16_t> AnalogRemoteCtrl[5];// Rud; Left; Right; Brake; Decl;
-    //номер каждого элемента массива соответствует значению регистра таймера умноженного на 4, в каждом массиве храним значение давления умноженное на 10. Можно сделать массив array(ев) и только 1 функцию калибровки (обращаться по индексу).
-    std::array<uint16_t, 125> OtLeftValve;
-    std::array<uint16_t, 125> OtRightValve;
-    std::array<uint16_t, 125> BfLeftValve;
-    std::array<uint16_t, 125> BfRightValve;
-    std::array<uint16_t, 125> FValve;
-    std::array<uint16_t, 125> RValve;
-    std::array<uint16_t, 125> OneValve;
-    std::array<uint16_t, 125> TwoValve;
-    std::array<uint16_t, 125> ThreeValve;
+    std::pair<uint16_t, uint16_t> MinMaxRpm;
+    //номер каждого элемента массива соответствует значению регистра таймера умноженного на 4, в каждом массиве храним значение давления умноженное на 10.
+    std::array<std::array<uint16_t, 125>, 9> Valve;//OTl, OTr, BFl, BFr, F, R, One, Two, Three
   }d;
 
   SM Left, Right, Throt, Brake, Decel, Temp, OtL, OtR, BfL, BfR, F, R, One, Two, Three, PresFilter;
@@ -245,7 +226,6 @@ public:
   KPP& operator= (const KPP&) = delete;
   KPP& operator= (KPP&&)      = delete;
   ~KPP()                      = default;
-
   //logic control
   void SetAllOt()                    const;
   void ResetAllOt()                  const;
@@ -256,18 +236,20 @@ public:
   void SetDirection(const uint8_t)   const;
   void ResetDirection(const uint8_t) const;
   void ResetAllDirect()              const;
-
   void BrakeRotate(Calibrate&);
-  void SwitchDirection(Engine&, Calibrate&);
-  void Parking(const uint16_t, Calibrate&);
-  void SetClutch(const uint16_t, Calibrate&);
-
+  void SwitchDirection(Calibrate&);
+  void Parking(Calibrate&);
+  void SetClutch(Calibrate&);
   //Work with the data
   void DigitalSet(const uint16_t, Calibrate&);
   void AnalogSet(const uint16_t*, Calibrate&);
   void CurrentSet(const uint16_t*, Calibrate&);
   void Send(Calibrate&);
   void SendData(Calibrate&);
+  void RequestRpm(const uint16_t) const;
+  void SetRpm(const uint16_t);
+  //test
+  void SendDataValve(Calibrate&);
 private:
   void Send(CanTxMsg&, std::pair<uint16_t, uint16_t>*, Calibrate&);
   void PropBrakeR(const uint8_t)                   const;
@@ -301,14 +283,10 @@ private:
   void SetForward()                                const;
   void SetReverse()                                const;
 
+  uint16_t       rpm    = 0;
   const uint16_t maxpwm = 500;
   const uint8_t  minpwm = 0;
-
-  //uint8_t BfLcount = 0;
-  //uint8_t BfRcount = 0;
-  //нужно для пропорционального управления клапаном по графику!!!
-  //bool SetBfL = false;
-  //bool SetBfR = false;
+  const uint8_t  resol  = 8;
 };
 
 //inline методы должны быть включены в каждую трансляцию, так что лучше их определять в заголовке.
@@ -336,4 +314,6 @@ inline void KPP::SetForward() const   { TIM_SetCompare4(TIM3, maxpwm); }
 inline void KPP::ResetForward() const { TIM_SetCompare4(TIM3, minpwm); }
 inline void KPP::SetReverse() const   { TIM_SetCompare2(TIM1, maxpwm); }
 inline void KPP::ResetReverse() const { TIM_SetCompare2(TIM1, minpwm); }
+
+inline void KPP::SetRpm(const uint16_t x) { rpm = x / resol; };
 #endif /* __KPP */

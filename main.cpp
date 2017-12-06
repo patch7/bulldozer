@@ -7,7 +7,6 @@
 #include "stm32f4xx_dma.h"
 #include "stm32f4xx_tim.h"
 #include "sliding_median.h"
-#include "engine.h"
 #include "KPP.h"
 
 #define LEFT     (ADCValue[0])
@@ -42,7 +41,6 @@ void FlashInit(void);
 Pressure pres;
 Calibrate::State state = Calibrate::Not;
 Calibrate cal(9);
-Engine    eng;
 KPP       kpp;
 
 void main()
@@ -436,33 +434,21 @@ extern "C"
       if(!(time_ms % 10))
       {
         //управление клапанами в пропорциональном режиме
-        //калибровка клапана в автоматическом режиме по условию!
-        switch(state)
-        {//калибровку клапанов надо проводить на каждую точку в 220 мс, чтобы компенсировать задержку реакции клапана 150 мс и 70 мс для фильтрации давления.
-          case Calibrate::OtLeftV:  cal.OtLeftValve(state, pres);  break;
-          case Calibrate::OtRightV: cal.OtRightValve(state, pres); break;
-          case Calibrate::BfLeftV:  cal.BfLeftValve(state, pres);  break;
-          case Calibrate::BfRightV: cal.BfRightValve(state, pres); break;
-          case Calibrate::ForwardV: cal.ForwardValve(state, pres); break;
-          case Calibrate::ReverseV: cal.ReverseValve(state, pres); break;
-          case Calibrate::OneV:     cal.OneValve(state, pres);     break;
-          case Calibrate::TwoV:     cal.TwoValve(state, pres);     break;
-          case Calibrate::ThreeV:   cal.ThreeValve(state, pres);   break;
-        }
+        if(state != Calibrate::Not)
+          cal.Valve(state, pres);//Калибровка клапана!
       }
-      if(!(time_ms % 50))
+      if(!(time_ms % 74))
         kpp.Send(cal);
-      
       if(!(time_ms % 99))
       {
-        kpp.Parking(eng.GetRpm(), cal);
-        kpp.SetClutch(eng.GetRpm(), cal);
-        kpp.SwitchDirection(eng, cal);
+        kpp.Parking(cal);
+        kpp.SetClutch(cal);
+        kpp.SwitchDirection(cal);
         kpp.BrakeRotate(cal);
+        kpp.RequestRpm(800);//вместо числа поставить данные с аналогово входа ручки РУД.
       }
     }
   }
-  
   //Принимает от контроллера АСУ2.0 дискретные сигналы с органов управления, также обрабатываем сообщение с ДВС об оборотах.
   void CAN2_RX0_IRQHandler()
   {
@@ -498,25 +484,17 @@ extern "C"
           case 0x112: cal.Save();                                                break;
           case 0x113: kpp.SendData(cal);                                         break;
 
-          case 0x120: state = Calibrate::OtLeftV;                                break;
-          case 0x121: state = Calibrate::OtRightV;                               break;
-          case 0x122: state = Calibrate::BfLeftV;                                break;
-          case 0x123: state = Calibrate::BfRightV;                               break;
-          case 0x124: state = Calibrate::ForwardV;                               break;
-          case 0x125: state = Calibrate::ReverseV;                               break;
-          case 0x126: state = Calibrate::OneV;                                   break;
-          case 0x127: state = Calibrate::TwoV;                                   break;
-          case 0x128: state = Calibrate::ThreeV;                                 break;
-
+          case 0x120: state = static_cast<Calibrate::State>(RxMsg.Data[0]);      break;
           case 0x181:
             pres.i = RxMsg.Data[3] << 24 | RxMsg.Data[2] << 16 | RxMsg.Data[1] << 8 |RxMsg.Data[0];
-            if(pres.f < 0) pres.f = 0;
+            if(pres.f < 0)
+              pres.f = 0;
             break;
         }
       else
         switch(RxMsg.ExtId)
         {
-          case 0x0CF00400: eng.SetRpm((RxMsg.Data[4] * 256 + RxMsg.Data[3]) / 8); break;
+          case 0x0CF00400: kpp.SetRpm(RxMsg.Data[4] * 256 + RxMsg.Data[3]); break;
         }
     }
   }

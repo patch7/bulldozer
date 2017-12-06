@@ -46,6 +46,24 @@ void KPP::CurrentSet(const uint16_t* data, Calibrate& cal)//Good
   cal.Two.push(data[7]);
   cal.Three.push(data[8]);
 }
+void KPP::RequestRpm(const uint16_t x) const
+{
+  CanTxMsg TxMessage;
+  TxMessage.ExtId = 0x0C000000;
+  TxMessage.RTR   = CAN_RTR_DATA;
+  TxMessage.IDE   = CAN_ID_EXT;
+  TxMessage.DLC   = 8;
+
+  TxMessage.Data[0] = 0;
+  TxMessage.Data[1] = 0;
+  TxMessage.Data[2] = 0;
+  TxMessage.Data[3] = x * resol % 256;
+  TxMessage.Data[4] = x * resol / 256;
+  TxMessage.Data[5] = 0;
+  TxMessage.Data[6] = 0;
+  TxMessage.Data[7] = 0;
+  CAN_Transmit(CAN2, &TxMessage);
+}
 void KPP::Send(Calibrate& cal)//Good, надо исправить в соответствии с коментариями.
 {
   CanTxMsg TxMessage;
@@ -78,19 +96,19 @@ void KPP::Send(Calibrate& cal)//Good, надо исправить в соотв�
   CAN_Transmit(CAN2, &TxMessage);
 
   TxMessage.StdId   = 0x003;
-  TxMessage.Data[0] = (uint8_t)(cal.OtL.get() / 16);
-  TxMessage.Data[1] = (uint8_t)(cal.OtR.get() / 16);
-  TxMessage.Data[2] = (uint8_t)(cal.BfL.get() / 16);
-  TxMessage.Data[3] = (uint8_t)(cal.BfR.get() / 16);
-  TxMessage.Data[4] = (uint8_t)(cal.F.get()   / 16);
-  TxMessage.Data[5] = (uint8_t)(cal.R.get()   / 16);
-  TxMessage.Data[6] = (uint8_t)(cal.One.get() / 16);
-  TxMessage.Data[7] = (uint8_t)(cal.Two.get() / 16);
+  TxMessage.Data[0] = (uint8_t)(cal.OtL.get() / 16.25);//На дисплее надо умножить на (4.88..5)
+  TxMessage.Data[1] = (uint8_t)(cal.OtR.get() / 16.25);//На дисплее надо умножить на (4.88..5)
+  TxMessage.Data[2] = (uint8_t)(cal.BfL.get() / 16.25);//На дисплее надо умножить на (4.88..5)
+  TxMessage.Data[3] = (uint8_t)(cal.BfR.get() / 16.25);//На дисплее надо умножить на (4.88..5)
+  TxMessage.Data[4] = (uint8_t)(cal.F.get()   / 16.25);//На дисплее надо умножить на (4.88..5)
+  TxMessage.Data[5] = (uint8_t)(cal.R.get()   / 16.25);//На дисплее надо умножить на (4.88..5)
+  TxMessage.Data[6] = (uint8_t)(cal.One.get() / 16.25);//На дисплее надо умножить на (4.88..5)
+  TxMessage.Data[7] = (uint8_t)(cal.Two.get() / 16.25);//На дисплее надо умножить на (4.88..5)
   while(!cal.CanTxMailBox_IsEmpty(CAN2));
   CAN_Transmit(CAN2, &TxMessage);
 
   TxMessage.StdId   = 0x004;
-  TxMessage.Data[0] = (uint8_t)(cal.Three.get() / 16);
+  TxMessage.Data[0] = (uint8_t)(cal.Three.get() / 16.25);//На дисплее надо умножить на (4.88..5)
   TxMessage.Data[1] = 0;
   TxMessage.Data[2] = 0;
   TxMessage.Data[3] = 0;
@@ -177,6 +195,25 @@ void KPP::SendData(Calibrate& cal)//Good
     CAN_Transmit(CAN2, &TxMessage);
   }
 }
+//тест
+void KPP::SendDataValve(Calibrate& cal)//Пока только ОТ левый
+{
+  CanTxMsg TxMessage;
+  TxMessage.RTR   = CAN_RTR_DATA;
+  TxMessage.IDE   = CAN_ID_STD;
+  TxMessage.DLC   = 8;
+  TxMessage.StdId = 0x300;
+
+  for(uint8_t i = 1; i <= cal.d.Valve.begin()->size(); ++i)
+    if(i % 9)
+      TxMessage.Data[(i % 9) - 1] = (uint8_t)(cal.d.Valve[0][i - 1]);
+    else
+    {
+      while(!cal.CanTxMailBox_IsEmpty(CAN2));
+      CAN_Transmit(CAN2, &TxMessage);
+      ++TxMessage.StdId;
+    }
+}
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////       ///////   //////   | \   ||  ////////  //////    //////   //            //////////
 //////////       //       //    //  ||\\  ||     //     //   //  //    //  //            //////////
@@ -184,7 +221,7 @@ void KPP::SendData(Calibrate& cal)//Good
 //////////       //       //    //  ||  \\||     //     // //    //    //  //            //////////
 //////////       ///////   //////   ||   \ |     //     //   //   //////   ///////       //////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void KPP::Parking(const uint16_t rpm, Calibrate& cal)//Проверить на пропорциональное управление
+void KPP::Parking(Calibrate& cal)//Проверить на пропорциональное управление
 {
   if(cal.parking == ON && cal.parking_ch)
   {
@@ -195,6 +232,8 @@ void KPP::Parking(const uint16_t rpm, Calibrate& cal)//Проверить на �
   {
     SetBfL();
     SetBfR();
+    ResetOtL();//ОТ выключен
+    ResetOtR();//ОТ выключен
     if(rpm > 350)//Убрать магическое число
     {
       cal.clutch = 1;
@@ -220,7 +259,7 @@ void KPP::ResetAllClutch() const//Проверить на логику проп.
   ResetSecond();
   ResetThird();
 }
-void KPP::SetClutch(const uint16_t rpm, Calibrate& cal)//Проверить на пропорциональное управление
+void KPP::SetClutch(Calibrate& cal)//Проверить на пропорциональное управление
 {
   if(cal.parking == OFF && cal.clutch_st == PLUS && cal.clutch < 3 && rpm > 350)//магическое число
   {//за счет времени спада давления в бустере передачи, алгоритм будет соответствовать ТТ, т.е. включается необходимая передача и через 100 мс выключается предыдущая. Так ли надо управлять???
@@ -229,7 +268,7 @@ void KPP::SetClutch(const uint16_t rpm, Calibrate& cal)//Проверить на
     OnClutch(cal);
     cal.clutch_st = false;
   }
-  else if(cal.parking == OFF && cal.clutch_st == MINUS && cal.clutch > 1 && rpm > 350)//магическое число
+  else if(cal.parking == OFF && cal.clutch_st == MINUS && cal.clutch > 1 && rpm > 350)//magic numb
   {
     OffClutch(cal);
     --cal.clutch;
@@ -268,7 +307,7 @@ void KPP::SetDirection(const uint8_t dir) const//Проверить нужен �
   else if(dir == R)
     SetReverse();
 }
-void KPP::SwitchDirection(Engine& eng, Calibrate& cal)//Good привести в соответствии с коментариями
+void KPP::SwitchDirection(Calibrate& cal)//Good привести в соответствии с коментариями
 {
   if(cal.direct_ch && cal.parking == OFF)
   {
@@ -284,19 +323,15 @@ void KPP::SwitchDirection(Engine& eng, Calibrate& cal)//Good привести в
 
     if(cal.direction)
     {
-      uint16_t rpm = eng.GetRpm();
+      uint16_t temp = rpm;
       if(rpm > 810)//магическое число
-      {
-        eng.SetRpm(800);//магическое число
-        eng.RequestRpm();
-      }
+        RequestRpm(800);//магическое число
       SetDirection(cal.direction);
-      eng.SetRpm(rpm);
-      eng.RequestRpm();
+      RequestRpm(temp);
     }
   }
           
-  if(cal.direction == N && cal.parking == ON && eng.GetRpm() < 350)//магическое число
+  if(cal.direction == N && cal.parking == ON && rpm < 350)//магическое число
     cal.start_eng = true;
   else
     cal.start_eng = false;
@@ -359,9 +394,11 @@ void KPP::BrakeRotate(Calibrate& cal)//Good
   bool right_up   = false;
   bool right_down = false;
 
-  uint8_t left  = 100 - cal.Left.get()  * 100 / 4095;
-  uint8_t right = 100 - cal.Right.get() * 100 / 4095;
-  uint8_t brake = cal.Brake.get() * 100 / 4095;
+  uint8_t left  = (cal.d.AnalogRemoteCtrl[1].second * 100 / cal.d.AnalogRemoteCtrl[1].second) -
+                  (cal.Left.get()                   * 100 / cal.d.AnalogRemoteCtrl[1].second);
+  uint8_t right = (cal.d.AnalogRemoteCtrl[2].second * 100 / cal.d.AnalogRemoteCtrl[2].second) -
+                  (cal.Right.get()                  * 100 / cal.d.AnalogRemoteCtrl[2].second);
+  uint8_t brake =  cal.Brake.get()                  * 100 / cal.d.AnalogRemoteCtrl[3].second;
 
   if(old_left + 1 < left)//левый джойстик
   {// +1 для избежания постоянного переключения из-за дрожания руки.
@@ -390,13 +427,13 @@ void KPP::BrakeRotate(Calibrate& cal)//Good
 
   if(cal.parking == OFF)
   {
-    const uint8_t begin = 10;
-    const uint8_t end   = 90;
+    const uint8_t begin =  5;
+    const uint8_t end   = 95;
 
     if(left <= begin)//приоритет у того, кто сильнее тормозит
     {
       if(brake <= begin)
-        ResetOtL();//Дискретно, нужна задержка чтобы масло успело слиться!
+        ResetOtL();//Дискретно, по графику или нет?
       else if(brake > begin && brake < end)
         SetOtL(brake);
       else if(brake >= end)
@@ -413,26 +450,13 @@ void KPP::BrakeRotate(Calibrate& cal)//Good
     }
 
     if(left_up)
-    {
       LeftUp(begin, end, left, brake);
-      if(right_up)
-        RightUp(begin, end, right, brake);
-      else if(right_down)
-        RightDown(begin, brake);
-    }
     else if(left_down)
-    {
       LeftDown(begin, brake);
-      if(right_up)
-        RightUp(begin, end, right, brake);
-      else if(right_down)
-        RightDown(begin, brake);
-    }
-    else// if(!left_up && !left_down)
-      if(right_up)
-        RightUp(begin, end, right, brake);
-      else if(right_down)
-        RightDown(begin, brake);
+    if(right_up)
+      RightUp(begin, end, right, brake);
+    else if(right_down)
+      RightDown(begin, brake);
   }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -483,163 +507,28 @@ void Calibrate::RemoteCtrl(uint8_t state)//Good
     case 0x45: d.AnalogRemoteCtrl[4].second = Decel.get(); break;//max
   }
 }
-//Функция вызывается раз в 10 мс, каждый 22-й вызов сохраняет давление и увеличивает ток клапана. После каждого увеличения тока на клапане, происходит ожидание задержки реакции электромагнита (100 мс, запас в 25 мс) и реакции клапана (стабилизации давления 50 мс, запас 25 мс). Далее в течении 70 мс (т.е. 7 раз) записывается текущее значение давления в фильтр скользящей медианы. После заполнения фильтра увеличиваем ток и записываем давление в таблицу соответствия тока давлению.
-void Calibrate::OtLeftValve(State& state, Pressure pres)
+//Функция вызывается раз в 10 мс, каждый 22-й (220 мс) вызов сохраняет давление и увеличивает ток клапана. После каждого увеличения тока на клапане, происходит ожидание задержки реакции электромагнита (100 мс, запас в 25 мс) и реакции клапана (стабилизации давления 50 мс, запас 25 мс). Далее в течении 70 мс (т.е. 7 раз) записывается текущее значение давления в фильтр. После заполнения фильтра записываем давление в таблицу соответствия тока давлению и увеличиваем ток.
+void Calibrate::Valve(State& state, Pressure pres)
 {
   const uint8_t cycle_time   = 22;// 22 * 10 = 220 мс
   const uint8_t current_step = 4; // 500 / 4 = 125 точек
   static uint16_t count      = 0;
 
-  if(!(count % cycle_time) && count / cycle_time <= d.OtLeftValve.size())
+  auto pValve = d.Valve.begin() + static_cast<uint8_t>(state) - 1;
+
+  if(!(count % cycle_time) && count / cycle_time <= pValve->size())
   {
-    if(count / cycle_time == d.OtLeftValve.size())//если последняя точка
+    if(count > 0)
+      (*pValve)[count / cycle_time - 1] = PresFilter.get();//записываем давление
+    if(count / cycle_time == pValve->size())//если последняя точка
     {
-      d.OtLeftValve[(count / cycle_time) - 1] = PresFilter.get();
       state = Not;
       TIM_SetCompare1(TIM4, count = 0);
       return;
     }
-    TIM_SetCompare1(TIM4, current_step + (current_step * count / cycle_time));
-    if(count > 0)
-      d.OtLeftValve[(count / cycle_time) - 1] = PresFilter.get();
+    TIM_SetCompare1(TIM4, current_step + current_step * (count / cycle_time));
   }
   if(count >= 15 + cycle_time * (count / cycle_time))//магическое число
     PresFilter.push(static_cast<uint16_t>(pres.f * 10));
-  ++count;
-}
-void Calibrate::OtRightValve(State& state, Pressure pres)//Калибровка клапана, проверить!!!
-{
-  static uint8_t count = 0;
-  if(count != 0 && count <= 250)//магическое число
-  {
-    d.OtRightValve[count - 1] = count;
-    d.OtRightValve[count - 1] = static_cast<uint16_t>(pres.f * 10);//current pressure
-    if(count == 250)//магическое число
-    {
-      state = Not;
-      TIM_SetCompare2(TIM4, count = 0);
-      return;
-    }
-  }
-  TIM_SetCompare2(TIM4, 2 + count * 2);//магическое число
-  ++count;
-}
-void Calibrate::BfLeftValve(State& state, Pressure pres)//Калибровка клапана, проверить!!!
-{
-  static uint8_t count = 0;
-  if(count != 0 && count <= 250)//магическое число
-  {
-    d.BfLeftValve[count - 1] = count;
-    d.BfLeftValve[count - 1] = static_cast<uint16_t>(pres.f * 10);//current pressure
-    if(count == 250)//магическое число
-    {
-      state = Not;
-      TIM_SetCompare3(TIM4, count = 0);
-      return;
-    }
-  }
-  TIM_SetCompare3(TIM4, 2 + count * 2);//магическое число
-  ++count;
-}
-void Calibrate::BfRightValve(State& state, Pressure pres)//Калибровка клапана, проверить!!!
-{
-  static uint8_t count = 0;
-  if(count != 0 && count <= 250)//магическое число
-  {
-    d.BfRightValve[count - 1] = count;
-    d.BfRightValve[count - 1] = static_cast<uint16_t>(pres.f * 10);//current pressure
-    if(count == 250)//магическое число
-    {
-      state = Not;
-      TIM_SetCompare4(TIM4, count = 0);
-      return;
-    }
-  }
-  TIM_SetCompare4(TIM4, 2 + count * 2);//магическое число
-  ++count;
-}
-void Calibrate::ForwardValve(State& state, Pressure pres)//Калибровка клапана, проверить!!!
-{
-  static uint8_t count = 0;
-  if(count != 0 && count <= 250)//магическое число
-  {
-    d.FValve[count - 1] = count;
-    d.FValve[count - 1] = static_cast<uint16_t>(pres.f * 10);//current pressure
-    if(count == 250)//магическое число
-    {
-      state = Not;
-      TIM_SetCompare4(TIM3, count = 0);
-      return;
-    }
-  }
-  TIM_SetCompare4(TIM3, 2 + count * 2);//магическое число
-  ++count;
-}
-void Calibrate::ReverseValve(State& state, Pressure pres)//Калибровка клапана, проверить!!!
-{
-  static uint8_t count = 0;
-  if(count != 0 && count <= 250)//магическое число
-  {
-    d.RValve[count - 1] = count;
-    d.RValve[count - 1] = static_cast<uint16_t>(pres.f * 10);//current pressure
-    if(count == 250)//магическое число
-    {
-      state = Not;
-      TIM_SetCompare2(TIM1, count = 0);
-      return;
-    }
-  }
-  TIM_SetCompare2(TIM1, 2 + count * 2);//магическое число
-  ++count;
-}
-void Calibrate::OneValve(State& state, Pressure pres)//Калибровка клапана, проверить!!!
-{
-  static uint8_t count = 0;
-  if(count != 0 && count <= 250)//магическое число
-  {
-    d.OneValve[count - 1] = count;
-    d.OneValve[count - 1] = static_cast<uint16_t>(pres.f * 10);//current pressure
-    if(count == 250)//магическое число
-    {
-      state = Not;
-      TIM_SetCompare1(TIM3, count = 0);
-      return;
-    }
-  }
-  TIM_SetCompare1(TIM3, 2 + count * 2);//магическое число
-  ++count;
-}
-void Calibrate::TwoValve(State& state, Pressure pres)//Калибровка клапана, проверить!!!
-{
-  static uint8_t count = 0;
-  if(count != 0 && count <= 250)//магическое число
-  {
-    d.TwoValve[count - 1] = count;
-    d.TwoValve[count - 1] = static_cast<uint16_t>(pres.f * 10);//current pressure
-    if(count == 250)//магическое число
-    {
-      state = Not;
-      TIM_SetCompare2(TIM3, count = 0);
-      return;
-    }
-  }
-  TIM_SetCompare2(TIM3, 2 + count * 2);//магическое число
-  ++count;
-}
-void Calibrate::ThreeValve(State& state, Pressure pres)//Калибровка клапана, проверить!!!
-{
-  static uint8_t count = 0;
-  if(count != 0 && count <= 250)//магическое число
-  {
-    d.ThreeValve[count - 1] = count;
-    d.ThreeValve[count - 1] = static_cast<uint16_t>(pres.f * 10);//current pressure
-    if(count == 250)//магическое число
-    {
-      state = Not;
-      TIM_SetCompare3(TIM3, count = 0);
-      return;
-    }
-  }
-  TIM_SetCompare3(TIM3, 2 + count * 2);//магическое число
   ++count;
 }
