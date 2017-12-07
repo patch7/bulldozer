@@ -152,23 +152,23 @@ void KPP::SendData(Calibrate& cal)//Good
   TxMessage.DLC     = 8;
 
   TxMessage.StdId = 0x200;
-  Send(TxMessage, cal.d.OtLeftTimeCur, cal);
+  Send(TxMessage, cal.d.OtLeftTimePres, cal);
   TxMessage.StdId = 0x202;
-  Send(TxMessage, cal.d.OtRightTimeCur, cal);
+  Send(TxMessage, cal.d.OtRightTimePres, cal);
   TxMessage.StdId = 0x204;
-  Send(TxMessage, cal.d.BfLeftTimeCur, cal);
+  Send(TxMessage, cal.d.BfLeftTimePres, cal);
   TxMessage.StdId = 0x206;
-  Send(TxMessage, cal.d.BfRightTimeCur, cal);
+  Send(TxMessage, cal.d.BfRightTimePres, cal);
   TxMessage.StdId = 0x208;
-  Send(TxMessage, cal.d.ForwardTimeCur, cal);
+  Send(TxMessage, cal.d.ForwardTimePres, cal);
   TxMessage.StdId = 0x20A;
-  Send(TxMessage, cal.d.ReverseTimeCur, cal);
+  Send(TxMessage, cal.d.ReverseTimePres, cal);
   TxMessage.StdId = 0x20C;
-  Send(TxMessage, cal.d.OneTimeCur, cal);
+  Send(TxMessage, cal.d.OneTimePres, cal);
   TxMessage.StdId = 0x20E;
-  Send(TxMessage, cal.d.TwoTimeCur, cal);
+  Send(TxMessage, cal.d.TwoTimePres, cal);
   TxMessage.StdId = 0x210;
-  Send(TxMessage, cal.d.ThreeTimeCur, cal);
+  Send(TxMessage, cal.d.ThreeTimePres, cal);
 
   TxMessage.StdId = 0x212;
   for(uint8_t i = 0; i < 5; ++i, ++TxMessage.StdId)

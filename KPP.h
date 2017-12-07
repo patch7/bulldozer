@@ -62,23 +62,23 @@ public:
 
   void RemoteCtrl(uint8_t);
   void OtLeftTime(CanRxMsg&);
-  void OtLeftCur(CanRxMsg&);
+  void OtLeftPres(CanRxMsg&);
   void OtRightTime(CanRxMsg&);
-  void OtRightCur(CanRxMsg&);
+  void OtRightPres(CanRxMsg&);
   void BfLeftTime(CanRxMsg&);
-  void BfLeftCur(CanRxMsg&);
+  void BfLeftPres(CanRxMsg&);
   void BfRightTime(CanRxMsg&);
-  void BfRightCur(CanRxMsg&);
+  void BfRightPres(CanRxMsg&);
   void ForwardTime(CanRxMsg&);
-  void ForwardCur(CanRxMsg&);
+  void ForwardPres(CanRxMsg&);
   void ReverseTime(CanRxMsg&);
-  void ReverseCur(CanRxMsg&);
+  void ReversePres(CanRxMsg&);
   void OneTime(CanRxMsg&);
-  void OneCur(CanRxMsg&);
+  void OnePres(CanRxMsg&);
   void TwoTime(CanRxMsg&);
-  void TwoCur(CanRxMsg&);
+  void TwoPres(CanRxMsg&);
   void ThreeTime(CanRxMsg&);
-  void ThreeCur(CanRxMsg&);
+  void ThreePres(CanRxMsg&);
   void Valve(State&, Pressure);
   void Save();
   ~Calibrate()                           = default;
@@ -91,15 +91,15 @@ private:
   
   struct Data
   {
-    std::pair<uint16_t, uint16_t> OtLeftTimeCur[8];
-    std::pair<uint16_t, uint16_t> OtRightTimeCur[8];
-    std::pair<uint16_t, uint16_t> BfLeftTimeCur[8];
-    std::pair<uint16_t, uint16_t> BfRightTimeCur[8];
-    std::pair<uint16_t, uint16_t> ForwardTimeCur[8];
-    std::pair<uint16_t, uint16_t> ReverseTimeCur[8];
-    std::pair<uint16_t, uint16_t> OneTimeCur[8];
-    std::pair<uint16_t, uint16_t> TwoTimeCur[8];
-    std::pair<uint16_t, uint16_t> ThreeTimeCur[8];
+    std::pair<uint16_t, uint16_t> OtLeftTimePres[8];
+    std::pair<uint16_t, uint16_t> OtRightTimePres[8];
+    std::pair<uint16_t, uint16_t> BfLeftTimePres[8];
+    std::pair<uint16_t, uint16_t> BfRightTimePres[8];
+    std::pair<uint16_t, uint16_t> ForwardTimePres[8];
+    std::pair<uint16_t, uint16_t> ReverseTimePres[8];
+    std::pair<uint16_t, uint16_t> OneTimePres[8];
+    std::pair<uint16_t, uint16_t> TwoTimePres[8];
+    std::pair<uint16_t, uint16_t> ThreeTimePres[8];
     std::pair<uint16_t, uint16_t> AnalogRemoteCtrl[5];// Rud; Left; Right; Brake; Decl;
     std::pair<uint16_t, uint16_t> MinMaxRpm;
     //номер каждого элемента массива соответствует значению регистра таймера умноженного на 4, в каждом массиве храним значение давления умноженное на 10.
@@ -128,92 +128,92 @@ inline void Calibrate::Save() { FlashWrite(); }
 inline void Calibrate::OtLeftTime(CanRxMsg& RxMsg)
 {
   for(uint8_t i = 0; i < RxMsg.DLC; ++i)
-    d.OtLeftTimeCur[i].first = RxMsg.Data[i] * koef;
+    d.OtLeftTimePres[i].first = RxMsg.Data[i] * koef;
 }
-inline void Calibrate::OtLeftCur(CanRxMsg& RxMsg)
+inline void Calibrate::OtLeftPres(CanRxMsg& RxMsg)
 {
   for(uint8_t i = 0; i < RxMsg.DLC; ++i)
-    d.OtLeftTimeCur[i].second = RxMsg.Data[i] * koef;
+    d.OtLeftTimePres[i].second = RxMsg.Data[i] * koef;
 }
 inline void Calibrate::OtRightTime(CanRxMsg& RxMsg)
 {
   for(uint8_t i = 0; i < RxMsg.DLC; ++i)
-    d.OtRightTimeCur[i].first = RxMsg.Data[i] * koef;
+    d.OtRightTimePres[i].first = RxMsg.Data[i] * koef;
 }
-inline void Calibrate::OtRightCur(CanRxMsg& RxMsg)
+inline void Calibrate::OtRightPres(CanRxMsg& RxMsg)
 {
   for(uint8_t i = 0; i < RxMsg.DLC; ++i)
-    d.OtRightTimeCur[i].second = RxMsg.Data[i] * koef;
+    d.OtRightTimePres[i].second = RxMsg.Data[i] * koef;
 }
 inline void Calibrate::BfLeftTime(CanRxMsg& RxMsg)
 {
   for(uint8_t i = 0; i < RxMsg.DLC; ++i)
-    d.BfLeftTimeCur[i].first = RxMsg.Data[i] * koef;
+    d.BfLeftTimePres[i].first = RxMsg.Data[i] * koef;
 }
-inline void Calibrate::BfLeftCur(CanRxMsg& RxMsg)
+inline void Calibrate::BfLeftPres(CanRxMsg& RxMsg)
 {
   for(uint8_t i = 0; i < RxMsg.DLC; ++i)
-    d.BfLeftTimeCur[i].second = RxMsg.Data[i] * koef;
+    d.BfLeftTimePres[i].second = RxMsg.Data[i] * koef;
 }
 inline void Calibrate::BfRightTime(CanRxMsg& RxMsg)
 {
   for(uint8_t i = 0; i < RxMsg.DLC; ++i)
-    d.BfRightTimeCur[i].first = RxMsg.Data[i] * koef;
+    d.BfRightTimePres[i].first = RxMsg.Data[i] * koef;
 }
-inline void Calibrate::BfRightCur(CanRxMsg& RxMsg)
+inline void Calibrate::BfRightPres(CanRxMsg& RxMsg)
 {
   for(uint8_t i = 0; i < RxMsg.DLC; ++i)
-    d.BfRightTimeCur[i].second = RxMsg.Data[i] * koef;
+    d.BfRightTimePres[i].second = RxMsg.Data[i] * koef;
 }
 inline void Calibrate::ForwardTime(CanRxMsg& RxMsg)
 {
   for(uint8_t i = 0; i < RxMsg.DLC; ++i)
-    d.ForwardTimeCur[i].first = RxMsg.Data[i] * koef;
+    d.ForwardTimePres[i].first = RxMsg.Data[i] * koef;
 }
-inline void Calibrate::ForwardCur(CanRxMsg& RxMsg)
+inline void Calibrate::ForwardPres(CanRxMsg& RxMsg)
 {
   for(uint8_t i = 0; i < RxMsg.DLC; ++i)
-    d.ForwardTimeCur[i].second = RxMsg.Data[i] * koef;
+    d.ForwardTimePres[i].second = RxMsg.Data[i] * koef;
 }
 inline void Calibrate::ReverseTime(CanRxMsg& RxMsg)
 {
   for(uint8_t i = 0; i < RxMsg.DLC; ++i)
-    d.ReverseTimeCur[i].first = RxMsg.Data[i] * koef;
+    d.ReverseTimePres[i].first = RxMsg.Data[i] * koef;
 }
-inline void Calibrate::ReverseCur(CanRxMsg& RxMsg)
+inline void Calibrate::ReversePres(CanRxMsg& RxMsg)
 {
   for(uint8_t i = 0; i < RxMsg.DLC; ++i)
-    d.ReverseTimeCur[i].second = RxMsg.Data[i] * koef;
+    d.ReverseTimePres[i].second = RxMsg.Data[i] * koef;
 }
 inline void Calibrate::OneTime(CanRxMsg& RxMsg)
 {
   for(uint8_t i = 0; i < RxMsg.DLC; ++i)
-    d.OneTimeCur[i].first = RxMsg.Data[i] * koef;
+    d.OneTimePres[i].first = RxMsg.Data[i] * koef;
 }
-inline void Calibrate::OneCur(CanRxMsg& RxMsg)
+inline void Calibrate::OnePres(CanRxMsg& RxMsg)
 {
   for(uint8_t i = 0; i < RxMsg.DLC; ++i)
-    d.OneTimeCur[i].second = RxMsg.Data[i] * koef;
+    d.OneTimePres[i].second = RxMsg.Data[i] * koef;
 }
 inline void Calibrate::TwoTime(CanRxMsg& RxMsg)
 {
   for(uint8_t i = 0; i < RxMsg.DLC; ++i)
-    d.TwoTimeCur[i].first = RxMsg.Data[i] * koef;
+    d.TwoTimePres[i].first = RxMsg.Data[i] * koef;
 }
-inline void Calibrate::TwoCur(CanRxMsg& RxMsg)
+inline void Calibrate::TwoPres(CanRxMsg& RxMsg)
 {
   for(uint8_t i = 0; i < RxMsg.DLC; ++i)
-    d.TwoTimeCur[i].second = RxMsg.Data[i] * koef;
+    d.TwoTimePres[i].second = RxMsg.Data[i] * koef;
 }
 inline void Calibrate::ThreeTime(CanRxMsg& RxMsg)
 {
   for(uint8_t i = 0; i < RxMsg.DLC; ++i)
-    d.ThreeTimeCur[i].first = RxMsg.Data[i] * koef;
+    d.ThreeTimePres[i].first = RxMsg.Data[i] * koef;
 }
-inline void Calibrate::ThreeCur(CanRxMsg& RxMsg)
+inline void Calibrate::ThreePres(CanRxMsg& RxMsg)
 {
   for(uint8_t i = 0; i < RxMsg.DLC; ++i)
-    d.ThreeTimeCur[i].second = RxMsg.Data[i] * koef;
+    d.ThreeTimePres[i].second = RxMsg.Data[i] * koef;
 }
 
 //все методы класса необходимо пересмотреть после создания общей структуры!!!
