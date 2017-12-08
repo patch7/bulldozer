@@ -461,30 +461,29 @@ extern "C"
       if(RxMsg.IDE == CAN_ID_STD)
         switch(RxMsg.StdId)
         {
-          case 0x005: kpp.DigitalSet((RxMsg.Data[1] << 8) | RxMsg.Data[0], cal); break;
-          case 0x010: cal.RemoteCtrl(RxMsg.Data[0]);                             break;
-          case 0x100: cal.OtLeftTime(RxMsg);                                     break;
-          case 0x101: cal.OtLeftPres(RxMsg);                                     break;
-          case 0x102: cal.OtRightTime(RxMsg);                                    break;
-          case 0x103: cal.OtRightPres(RxMsg);                                    break;
-          case 0x104: cal.BfLeftTime(RxMsg);                                     break;
-          case 0x105: cal.BfLeftPres(RxMsg);                                     break;
-          case 0x106: cal.BfRightTime(RxMsg);                                    break;
-          case 0x107: cal.BfRightPres(RxMsg);                                    break;
-          case 0x108: cal.ForwardTime(RxMsg);                                    break;
-          case 0x109: cal.ForwardPres(RxMsg);                                    break;
-          case 0x10A: cal.ReverseTime(RxMsg);                                    break;
-          case 0x10B: cal.ReversePres(RxMsg);                                    break;
-          case 0x10C: cal.OneTime(RxMsg);                                        break;
-          case 0x10D: cal.OnePres(RxMsg);                                        break;
-          case 0x10E: cal.TwoTime(RxMsg);                                        break;
-          case 0x10F: cal.TwoPres(RxMsg);                                        break;
-          case 0x110: cal.ThreeTime(RxMsg);                                      break;
-          case 0x111: cal.ThreePres(RxMsg);                                      break;
-          case 0x112: cal.Save();                                                break;
-          case 0x113: kpp.SendData(cal);                                         break;
-
-          case 0x120: state = static_cast<Calibrate::State>(RxMsg.Data[0]);      break;
+          case 0x005: kpp.DigitalSet(RxMsg.Data[1] << 8 | RxMsg.Data[0], cal);            break;
+          case 0x010: cal.RemoteCtrlAndRPM(RxMsg.Data[0],RxMsg.Data[2]<<8|RxMsg.Data[1]); break;
+          case 0x100: cal.OtLeftTime(RxMsg);                                              break;
+          case 0x101: cal.OtLeftPres(RxMsg);                                              break;
+          case 0x102: cal.OtRightTime(RxMsg);                                             break;
+          case 0x103: cal.OtRightPres(RxMsg);                                             break;
+          case 0x104: cal.BfLeftTime(RxMsg);                                              break;
+          case 0x105: cal.BfLeftPres(RxMsg);                                              break;
+          case 0x106: cal.BfRightTime(RxMsg);                                             break;
+          case 0x107: cal.BfRightPres(RxMsg);                                             break;
+          case 0x108: cal.ForwardTime(RxMsg);                                             break;
+          case 0x109: cal.ForwardPres(RxMsg);                                             break;
+          case 0x10A: cal.ReverseTime(RxMsg);                                             break;
+          case 0x10B: cal.ReversePres(RxMsg);                                             break;
+          case 0x10C: cal.OneTime(RxMsg);                                                 break;
+          case 0x10D: cal.OnePres(RxMsg);                                                 break;
+          case 0x10E: cal.TwoTime(RxMsg);                                                 break;
+          case 0x10F: cal.TwoPres(RxMsg);                                                 break;
+          case 0x110: cal.ThreeTime(RxMsg);                                               break;
+          case 0x111: cal.ThreePres(RxMsg);                                               break;
+          case 0x112: cal.Save();                                                         break;
+          case 0x113: kpp.SendData(cal);                                                  break;
+          case 0x120: state = static_cast<Calibrate::State>(RxMsg.Data[0]);               break;
           case 0x181:
             pres.i = RxMsg.Data[3] << 24 | RxMsg.Data[2] << 16 | RxMsg.Data[1] << 8 |RxMsg.Data[0];
             if(pres.f < 0)

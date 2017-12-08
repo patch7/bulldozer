@@ -173,16 +173,16 @@ void KPP::SendData(Calibrate& cal)//Good
   TxMessage.StdId = 0x212;
   for(uint8_t i = 0; i < 5; ++i, ++TxMessage.StdId)
   {
-    TxMessage.Data[0] = (uint8_t)(cal.d.AnalogRemoteCtrl[i].first);
-    TxMessage.Data[1] = (uint8_t)(cal.d.AnalogRemoteCtrl[i].first  >> 8);
-    TxMessage.Data[2] = (uint8_t)(cal.d.AnalogRemoteCtrl[i].second);
-    TxMessage.Data[3] = (uint8_t)(cal.d.AnalogRemoteCtrl[i].second  >> 8);
+    TxMessage.Data[0] = (uint8_t)(cal.d.AnalogRemoteCtrlAndRPM[i].first);
+    TxMessage.Data[1] = (uint8_t)(cal.d.AnalogRemoteCtrlAndRPM[i].first  >> 8);
+    TxMessage.Data[2] = (uint8_t)(cal.d.AnalogRemoteCtrlAndRPM[i].second);
+    TxMessage.Data[3] = (uint8_t)(cal.d.AnalogRemoteCtrlAndRPM[i].second  >> 8);
     if(++i < 5)
     {
-      TxMessage.Data[4] = (uint8_t)(cal.d.AnalogRemoteCtrl[i].first);
-      TxMessage.Data[5] = (uint8_t)(cal.d.AnalogRemoteCtrl[i].first >> 8);
-      TxMessage.Data[6] = (uint8_t)(cal.d.AnalogRemoteCtrl[i].second);
-      TxMessage.Data[7] = (uint8_t)(cal.d.AnalogRemoteCtrl[i].second >> 8);
+      TxMessage.Data[4] = (uint8_t)(cal.d.AnalogRemoteCtrlAndRPM[i].first);
+      TxMessage.Data[5] = (uint8_t)(cal.d.AnalogRemoteCtrlAndRPM[i].first >> 8);
+      TxMessage.Data[6] = (uint8_t)(cal.d.AnalogRemoteCtrlAndRPM[i].second);
+      TxMessage.Data[7] = (uint8_t)(cal.d.AnalogRemoteCtrlAndRPM[i].second >> 8);
     }
     else
     {
@@ -394,11 +394,13 @@ void KPP::BrakeRotate(Calibrate& cal)//Good
   bool right_up   = false;
   bool right_down = false;
 
-  uint8_t left  = (cal.d.AnalogRemoteCtrl[1].second * 100 / cal.d.AnalogRemoteCtrl[1].second) -
-                  (cal.Left.get()                   * 100 / cal.d.AnalogRemoteCtrl[1].second);
-  uint8_t right = (cal.d.AnalogRemoteCtrl[2].second * 100 / cal.d.AnalogRemoteCtrl[2].second) -
-                  (cal.Right.get()                  * 100 / cal.d.AnalogRemoteCtrl[2].second);
-  uint8_t brake =  cal.Brake.get()                  * 100 / cal.d.AnalogRemoteCtrl[3].second;
+  uint8_t left  = (cal.d.AnalogRemoteCtrlAndRPM[1].second * 100 /
+                   cal.d.AnalogRemoteCtrlAndRPM[1].second) - (cal.Left.get() * 100 /
+                   cal.d.AnalogRemoteCtrlAndRPM[1].second);
+  uint8_t right = (cal.d.AnalogRemoteCtrlAndRPM[2].second * 100 /
+                   cal.d.AnalogRemoteCtrlAndRPM[2].second) - (cal.Right.get() * 100 /
+                   cal.d.AnalogRemoteCtrlAndRPM[2].second);
+  uint8_t brake =  cal.Brake.get() * 100 / cal.d.AnalogRemoteCtrlAndRPM[3].second;
 
   if(old_left + 1 < left)//левый джойстик
   {// +1 для избежания постоянного переключения из-за дрожания руки.
@@ -491,20 +493,23 @@ void Calibrate::FlashRead()//Good
   for (uint16_t i = 0; i < sizeof(d); i += 4)//магическое число поменять на sizeof(uint32_t)
     *source_address++ = *(__IO uint32_t*)flash_address++;
 }
-void Calibrate::RemoteCtrl(uint8_t state)//Good
+void Calibrate::RemoteCtrlAndRPM(uint8_t state, uint16_t data)//Good
 {
   switch(state)
   {
-    case 0x21: d.AnalogRemoteCtrl[0].first  = Throt.get(); break;//min
-    case 0x41: d.AnalogRemoteCtrl[0].second = Throt.get(); break;//max
-    case 0x22: d.AnalogRemoteCtrl[1].first  = Left.get();  break;//min
-    case 0x42: d.AnalogRemoteCtrl[1].second = Left.get();  break;//max
-    case 0x23: d.AnalogRemoteCtrl[2].first  = Right.get(); break;//min
-    case 0x43: d.AnalogRemoteCtrl[2].second = Right.get(); break;//max
-    case 0x24: d.AnalogRemoteCtrl[3].first  = Brake.get(); break;//min
-    case 0x44: d.AnalogRemoteCtrl[3].second = Brake.get(); break;//max
-    case 0x25: d.AnalogRemoteCtrl[4].first  = Decel.get(); break;//min
-    case 0x45: d.AnalogRemoteCtrl[4].second = Decel.get(); break;//max
+    case 0x21: d.AnalogRemoteCtrlAndRPM[0].first  = Throt.get(); break;//min
+    case 0x22: d.AnalogRemoteCtrlAndRPM[1].first  = Left.get();  break;//min
+    case 0x23: d.AnalogRemoteCtrlAndRPM[2].first  = Right.get(); break;//min
+    case 0x24: d.AnalogRemoteCtrlAndRPM[3].first  = Brake.get(); break;//min
+    case 0x25: d.AnalogRemoteCtrlAndRPM[4].first  = Decel.get(); break;//min
+    case 0x26: d.AnalogRemoteCtrlAndRPM[5].first  = data;        break;//min
+
+    case 0x41: d.AnalogRemoteCtrlAndRPM[0].second = Throt.get(); break;//max
+    case 0x42: d.AnalogRemoteCtrlAndRPM[1].second = Left.get();  break;//max
+    case 0x43: d.AnalogRemoteCtrlAndRPM[2].second = Right.get(); break;//max
+    case 0x44: d.AnalogRemoteCtrlAndRPM[3].second = Brake.get(); break;//max
+    case 0x45: d.AnalogRemoteCtrlAndRPM[4].second = Decel.get(); break;//max
+    case 0x46: d.AnalogRemoteCtrlAndRPM[5].second = data;        break;//max
   }
 }
 //Функция вызывается раз в 10 мс, каждый 22-й (220 мс) вызов сохраняет давление и увеличивает ток клапана. После каждого увеличения тока на клапане, происходит ожидание задержки реакции электромагнита (100 мс, запас в 25 мс) и реакции клапана (стабилизации давления 50 мс, запас 25 мс). Далее в течении 70 мс (т.е. 7 раз) записывается текущее значение давления в фильтр. После заполнения фильтра записываем давление в таблицу соответствия тока давлению и увеличиваем ток.

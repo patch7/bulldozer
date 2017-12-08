@@ -60,7 +60,7 @@ public:
   Calibrate& operator=(const Calibrate&) = delete;
   Calibrate& operator=(Calibrate&&)      = delete;
 
-  void RemoteCtrl(uint8_t);
+  void RemoteCtrlAndRPM(uint8_t, uint16_t);
   void OtLeftTime(CanRxMsg&);
   void OtLeftPres(CanRxMsg&);
   void OtRightTime(CanRxMsg&);
@@ -100,8 +100,7 @@ private:
     std::pair<uint16_t, uint16_t> OneTimePres[8];
     std::pair<uint16_t, uint16_t> TwoTimePres[8];
     std::pair<uint16_t, uint16_t> ThreeTimePres[8];
-    std::pair<uint16_t, uint16_t> AnalogRemoteCtrl[5];// Rud; Left; Right; Brake; Decl;
-    std::pair<uint16_t, uint16_t> MinMaxRpm;
+    std::pair<uint16_t, uint16_t> AnalogRemoteCtrlAndRPM[6];// Rud; Left; Right; Brake; Decl; RPM;
     //номер каждого элемента массива соответствует значению регистра таймера умноженного на 4, в каждом массиве храним значение давления умноженное на 10.
     std::array<std::array<uint16_t, 125>, 9> Valve;//OTl, OTr, BFl, BFr, F, R, One, Two, Three
   }d;
