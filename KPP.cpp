@@ -62,6 +62,7 @@ void KPP::RequestRpm(const uint16_t x) const
   TxMessage.Data[5] = 0;
   TxMessage.Data[6] = 0;
   TxMessage.Data[7] = 0;
+  while(!cal.CanTxMailBox_IsEmpty(CAN2));
   CAN_Transmit(CAN2, &TxMessage);
 }
 void KPP::Send(Calibrate& cal)//Good, надо исправить в соответствии с коментариями.
@@ -511,6 +512,18 @@ void Calibrate::Valve(State& state, Pressure pres)
 
   auto pValve = d.Valve.begin() + static_cast<uint8_t>(state) - 1;
 
+  if(!count)
+  {
+    CanTxMsg TxMessage;
+    TxMessage.RTR     = CAN_RTR_DATA;
+    TxMessage.IDE     = CAN_ID_STD;
+    TxMessage.DLC     = 1;
+    TxMessage.StdId   = 0x114;
+    TxMessage.Data[0] = 0x01;
+    while(!cal.CanTxMailBox_IsEmpty(CAN2));
+    CAN_Transmit(CAN2, &TxMessage);//статус калибровки, идет калибровка клапана.
+  }
+
   if(!(count % cycle_time) && count / cycle_time <= pValve->size())
   {
     if(count > 0)
@@ -519,6 +532,15 @@ void Calibrate::Valve(State& state, Pressure pres)
     {
       state = Not;
       TIM_SetCompare1(TIM4, count = 0);
+
+      CanTxMsg TxMessage;
+      TxMessage.RTR     = CAN_RTR_DATA;
+      TxMessage.IDE     = CAN_ID_STD;
+      TxMessage.DLC     = 1;
+      TxMessage.StdId   = 0x114;
+      TxMessage.Data[0] = 0x00;
+      while(!cal.CanTxMailBox_IsEmpty(CAN2));
+      CAN_Transmit(CAN2, &TxMessage);//статус калибровки, калибровка клапана окончена.
       return;
     }
     TIM_SetCompare1(TIM4, current_step + current_step * (count / cycle_time));
