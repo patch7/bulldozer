@@ -171,26 +171,16 @@ void KPP::SendData(Calibrate& cal)//Good
   Send(TxMessage, cal.d.ThreeTimePres, cal);
 
   TxMessage.StdId = 0x212;
-  for(uint8_t i = 0; i < 5; ++i, ++TxMessage.StdId)
+  for(uint8_t i = 0; i < 3; ++i, ++TxMessage.StdId)
   {
-    TxMessage.Data[0] = (uint8_t)(cal.d.AnalogRemoteCtrlAndRPM[i].first);
-    TxMessage.Data[1] = (uint8_t)(cal.d.AnalogRemoteCtrlAndRPM[i].first  >> 8);
-    TxMessage.Data[2] = (uint8_t)(cal.d.AnalogRemoteCtrlAndRPM[i].second);
-    TxMessage.Data[3] = (uint8_t)(cal.d.AnalogRemoteCtrlAndRPM[i].second  >> 8);
-    if(++i < 5)
-    {
-      TxMessage.Data[4] = (uint8_t)(cal.d.AnalogRemoteCtrlAndRPM[i].first);
-      TxMessage.Data[5] = (uint8_t)(cal.d.AnalogRemoteCtrlAndRPM[i].first >> 8);
-      TxMessage.Data[6] = (uint8_t)(cal.d.AnalogRemoteCtrlAndRPM[i].second);
-      TxMessage.Data[7] = (uint8_t)(cal.d.AnalogRemoteCtrlAndRPM[i].second >> 8);
-    }
-    else
-    {
-      TxMessage.Data[4] = 0;
-      TxMessage.Data[5] = 0;
-      TxMessage.Data[6] = 0;
-      TxMessage.Data[7] = 0;
-    }
+    TxMessage.Data[0] = cal.d.AnalogRemoteCtrlAndRPM[i + i].first ;
+    TxMessage.Data[1] = cal.d.AnalogRemoteCtrlAndRPM[i + i].first  >> 8;
+    TxMessage.Data[2] = cal.d.AnalogRemoteCtrlAndRPM[i + i].second;
+    TxMessage.Data[3] = cal.d.AnalogRemoteCtrlAndRPM[i + i].second >> 8;
+    TxMessage.Data[4] = cal.d.AnalogRemoteCtrlAndRPM[i + i + 1].first ;
+    TxMessage.Data[5] = cal.d.AnalogRemoteCtrlAndRPM[i + i + 1].first  >> 8;
+    TxMessage.Data[6] = cal.d.AnalogRemoteCtrlAndRPM[i + i + 1].second;
+    TxMessage.Data[7] = cal.d.AnalogRemoteCtrlAndRPM[i + i + 1].second >> 8;
     while(!cal.CanTxMailBox_IsEmpty(CAN2));
     CAN_Transmit(CAN2, &TxMessage);
   }
