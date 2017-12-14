@@ -442,13 +442,25 @@ extern "C"
     {
       TIM_ClearITPendingBit(TIM7, TIM_IT_Update);
       ++time_ms;
+
+      //<управление клапанами в пропорциональном режиме>
+      if(SetTL);
+      if(SetTR);
+      if(SetBL);
+      if(SetBR);
+
+      if(Set1);
+      else if(Set2);
+      else if(Set3);
+
+      if(SetF)
+        kpp.GraphSetF(cal);
+      else if(SetR);
+      //</управление клапанами в пропорциональном режиме>
       
       if(!(time_ms % 10))
-      {
-        //управление клапанами в пропорциональном режиме
         if(state != Calibrate::Not)
           cal.Valve(state, pres);//Калибровка клапана!
-      }
       if(!(time_ms % 74))
         kpp.Send(cal);
       if(!(time_ms % 99))

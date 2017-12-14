@@ -240,6 +240,8 @@ public:
   void SwitchDirection(Calibrate&);
   void Parking(Calibrate&);
   void SetClutch(Calibrate&);
+  //test
+  void GraphSetF(Calibrate& cal);
   //Work with the data
   void DigitalSet(const uint16_t, Calibrate&);
   void AnalogSet(const uint16_t*, Calibrate&);

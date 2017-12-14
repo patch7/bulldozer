@@ -452,6 +452,39 @@ void KPP::BrakeRotate(Calibrate& cal)//Good
       RightDown(begin, brake);
   }
 }
+void KPP::GraphSetF(Calibrate& cal)
+{
+  static uint16_t count = 1;
+  static std::pair<uint16_t, uint16_t>* m = cal.d.ForwardTimePres;
+
+  if(count == 1)//заброс давления
+    TIM_SetCompare4(TIM3, maxpwm);
+  else if(count == m->first)//каждая точка (1,2,3,4,5,6,7,8)
+  {
+    uint16_t res  = std::find(cal.d.Valve[4].begin(), cal.d.Valve[4].end(), m->second) -
+                    cal.d.Valve[4].begin();
+    TIM_SetCompare4(TIM3, 4 + res * 4);
+    if(m == cal.d.ForwardTimePres + 7)
+    {
+      SetF  = false;
+      count = 1;
+      m     = cal.d.ForwardTimePres;
+      return;
+    }
+    ++m;
+  }
+  else if(m > cal.d.ForwardTimePres && count > (m-1)->first && count < m->first)//между точек
+  {
+    uint16_t time = m->first  - (m - 1)->first;
+    uint16_t res  = (std::find(cal.d.Valve[4].begin(), cal.d.Valve[4].end(), m->second) - 
+                     std::find(cal.d.Valve[4].begin(), cal.d.Valve[4].end(), (m-1)->second)) * 4;
+    double   pwm  = (double)(res / time) * (count - (m - 1)->first);
+    auto     temp = (std::find(cal.d.Valve[4].begin(), cal.d.Valve[4].end(), (m - 1)->second) -
+                               cal.d.Valve[4].begin()) * 4;
+    TIM_SetCompare4(TIM3, (uint32_t)(4 + temp + pwm));
+  }
+  ++count;
+}
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////    ///////      /\      //       //////  //////   //////       /\     ////////  //////    ////
 ////    //          //\\     //         //    //   //  //   //     //\\       //     //        ////
