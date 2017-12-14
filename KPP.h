@@ -18,6 +18,8 @@ const static uint8_t ON    = 1;
 
 union Pressure{ uint32_t i; float f; };
 
+bool CanTxMailBox_IsEmpty(CAN_TypeDef*);
+
 class Calibrate
 {
 public:
@@ -85,7 +87,6 @@ public:
 private:
   void FlashWrite();
   void FlashRead();
-  bool CanTxMailBox_IsEmpty(CAN_TypeDef*);
 
   static const uint32_t address = 0x08060000;
   

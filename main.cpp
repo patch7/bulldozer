@@ -318,12 +318,24 @@ void CANInit()
 
   NVIC_InitTypeDef NVIC_InitStruct;
   NVIC_InitStruct.NVIC_IRQChannel                   = CAN2_RX0_IRQn;
-  NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 2;
-  NVIC_InitStruct.NVIC_IRQChannelSubPriority        = 1;
+  NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 0;
+  NVIC_InitStruct.NVIC_IRQChannelSubPriority        = 0;
   NVIC_InitStruct.NVIC_IRQChannelCmd                = ENABLE;
   NVIC_Init(&NVIC_InitStruct);
 
-  CAN_ITConfig(CAN2, CAN_IT_FMP0, ENABLE);
+  NVIC_InitStruct.NVIC_IRQChannel                   = CAN2_RX1_IRQn;
+  NVIC_InitStruct.NVIC_IRQChannelSubPriority        = 1;
+  NVIC_Init(&NVIC_InitStruct);
+
+  NVIC_InitStruct.NVIC_IRQChannel                   = CAN2_TX_IRQn;
+  NVIC_InitStruct.NVIC_IRQChannelSubPriority        = 2;
+  NVIC_Init(&NVIC_InitStruct);
+
+  NVIC_InitStruct.NVIC_IRQChannel                   = CAN2_SCE_IRQn;
+  NVIC_InitStruct.NVIC_IRQChannelSubPriority        = 3;
+  NVIC_Init(&NVIC_InitStruct);
+
+  CAN_ITConfig(CAN2, CAN_IT_FMP0 | CAN_IT_FMP1 | CAN_IT_TME | CAN_IT_EWG | CAN_IT_EPV | CAN_IT_LEC | CAN_IT_ERR, ENABLE);
 }
 void TIM_PWMInit()
 {
@@ -452,11 +464,12 @@ extern "C"
   //Принимает от контроллера АСУ2.0 дискретные сигналы с органов управления, также обрабатываем сообщение с ДВС об оборотах.
   void CAN2_RX0_IRQHandler()
   {
-    if (CAN_GetITStatus(CAN2, CAN_IT_FMP0))
+    if(CAN_GetITStatus(CAN2, CAN_IT_FMP0))
     {
       CanRxMsg RxMsg;
       CAN_ClearITPendingBit(CAN2, CAN_IT_FMP0);
       CAN_Receive(CAN2, CAN_FIFO0, &RxMsg);
+      CAN_FIFORelease(CAN2, CAN_FIFO0);
       
       if(RxMsg.IDE == CAN_ID_STD)
         switch(RxMsg.StdId)
@@ -496,5 +509,31 @@ extern "C"
           case 0x0CF00400: kpp.SetRpm(RxMsg.Data[4] * 256 + RxMsg.Data[3]); break;
         }
     }
+  }
+  void CAN2_RX1_IRQHandler()
+  {
+    if(CAN_GetITStatus(CAN2, CAN_IT_FMP1))
+    {
+      CAN_ClearITPendingBit(CAN2, CAN_IT_FMP1);
+      CAN_FIFORelease(CAN2, CAN_FIFO1);
+    }
+  }
+  void CAN2_TX_IRQHandler()
+  {
+    if(CAN_GetITStatus(CAN2, CAN_IT_TME))
+      CAN_ClearITPendingBit(CAN2, CAN_IT_TME);
+  }
+  void CAN2_SCE_IRQHandler()
+  {
+    if(CAN_GetITStatus(CAN2, CAN_IT_ERR))
+      CAN_ClearITPendingBit(CAN2, CAN_IT_ERR);
+    if(CAN_GetITStatus(CAN2, CAN_IT_LEC))
+      CAN_ClearITPendingBit(CAN2, CAN_IT_LEC);
+    if(CAN_GetITStatus(CAN2, CAN_IT_EPV))
+      CAN_ClearITPendingBit(CAN2, CAN_IT_EPV);
+    if(CAN_GetITStatus(CAN2, CAN_IT_EWG))
+      CAN_ClearITPendingBit(CAN2, CAN_IT_EWG);
+    if(CAN_GetITStatus(CAN2, CAN_IT_BOF))
+      CAN_ClearITPendingBit(CAN2, CAN_IT_BOF);
   }
 }
