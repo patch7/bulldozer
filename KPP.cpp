@@ -62,7 +62,7 @@ void KPP::RequestRpm(const uint16_t x) const
   TxMessage.Data[5] = 0;
   TxMessage.Data[6] = 0;
   TxMessage.Data[7] = 0;
-  while(!cal.CanTxMailBox_IsEmpty(CAN2));
+  while(!CanTxMailBox_IsEmpty(CAN2));
   CAN_Transmit(CAN2, &TxMessage);
 }
 void KPP::Send(Calibrate& cal)//Good, надо исправить в соответствии с коментариями.
@@ -72,53 +72,54 @@ void KPP::Send(Calibrate& cal)//Good, надо исправить в соотв�
   TxMessage.IDE     = CAN_ID_STD;
   TxMessage.DLC     = 8;
 
-  TxMessage.StdId   = 0x001;
-  TxMessage.Data[0] = (uint8_t)(cal.Left.get());
-  TxMessage.Data[1] = (uint8_t)(cal.Left.get() >> 8);
-  TxMessage.Data[2] = (uint8_t)(cal.Right.get());
-  TxMessage.Data[3] = (uint8_t)(cal.Right.get() >> 8);
-  TxMessage.Data[4] = (uint8_t)(cal.Throt.get());
-  TxMessage.Data[5] = (uint8_t)(cal.Throt.get() >> 8);
-  TxMessage.Data[6] = (uint8_t)(cal.Brake.get());
-  TxMessage.Data[7] = (uint8_t)(cal.Brake.get() >> 8);
-  while(!cal.CanTxMailBox_IsEmpty(CAN2));
-  CAN_Transmit(CAN2, &TxMessage);
-
-  TxMessage.StdId   = 0x002;
-  TxMessage.Data[0] = (uint8_t)(cal.Decel.get());
-  TxMessage.Data[1] = (uint8_t)(cal.Decel.get() >> 8);
-  TxMessage.Data[2] = (uint8_t)(cal.clutch << 6|cal.reverse << 4|cal.parking << 2|cal.direction);
-  TxMessage.Data[3] = (uint8_t)(cal.start_eng);
-  TxMessage.Data[4] = (uint8_t)(cal.Temp.get());//надо привести к таблице температур!!!
-  TxMessage.Data[5] = 0;//Скорость трактора!
-  TxMessage.Data[6] = 0;//Reserved!
-  TxMessage.Data[7] = 0;//Reserved!
-  while(!cal.CanTxMailBox_IsEmpty(CAN2));
-  CAN_Transmit(CAN2, &TxMessage);
-
-  TxMessage.StdId   = 0x003;
-  TxMessage.Data[0] = (uint8_t)(cal.OtL.get() / 16.25);//На дисплее надо умножить на (4.88..5)
-  TxMessage.Data[1] = (uint8_t)(cal.OtR.get() / 16.25);//На дисплее надо умножить на (4.88..5)
-  TxMessage.Data[2] = (uint8_t)(cal.BfL.get() / 16.25);//На дисплее надо умножить на (4.88..5)
-  TxMessage.Data[3] = (uint8_t)(cal.BfR.get() / 16.25);//На дисплее надо умножить на (4.88..5)
-  TxMessage.Data[4] = (uint8_t)(cal.F.get()   / 16.25);//На дисплее надо умножить на (4.88..5)
-  TxMessage.Data[5] = (uint8_t)(cal.R.get()   / 16.25);//На дисплее надо умножить на (4.88..5)
-  TxMessage.Data[6] = (uint8_t)(cal.One.get() / 16.25);//На дисплее надо умножить на (4.88..5)
-  TxMessage.Data[7] = (uint8_t)(cal.Two.get() / 16.25);//На дисплее надо умножить на (4.88..5)
-  while(!cal.CanTxMailBox_IsEmpty(CAN2));
-  CAN_Transmit(CAN2, &TxMessage);
-
-  TxMessage.StdId   = 0x004;
-  TxMessage.Data[0] = (uint8_t)(cal.Three.get() / 16.25);//На дисплее надо умножить на (4.88..5)
-  TxMessage.Data[1] = 0;
-  TxMessage.Data[2] = 0;
-  TxMessage.Data[3] = 0;
-  TxMessage.Data[4] = 0;
-  TxMessage.Data[5] = 0;
-  TxMessage.Data[6] = 0;
-  TxMessage.Data[7] = 0;
-  while(!cal.CanTxMailBox_IsEmpty(CAN2));
-  CAN_Transmit(CAN2, &TxMessage);
+  for(TxMessage.StdId = 0x001; TxMessage.StdId < 0x005; ++TxMessage.StdId)
+  {
+    switch(TxMessage.StdId)
+    {
+      case 0x001:
+        TxMessage.Data[0] = (uint8_t)(cal.Left.get());
+        TxMessage.Data[1] = (uint8_t)(cal.Left.get() >> 8);
+        TxMessage.Data[2] = (uint8_t)(cal.Right.get());
+        TxMessage.Data[3] = (uint8_t)(cal.Right.get() >> 8);
+        TxMessage.Data[4] = (uint8_t)(cal.Throt.get());
+        TxMessage.Data[5] = (uint8_t)(cal.Throt.get() >> 8);
+        TxMessage.Data[6] = (uint8_t)(cal.Brake.get());
+        TxMessage.Data[7] = (uint8_t)(cal.Brake.get() >> 8);
+        break;
+      case 0x002:
+        TxMessage.Data[0] = (uint8_t)(cal.Decel.get());
+        TxMessage.Data[1] = (uint8_t)(cal.Decel.get() >> 8);
+        TxMessage.Data[2] = (uint8_t)(cal.clutch<<6|cal.reverse <<4|cal.parking <<2|cal.direction);
+        TxMessage.Data[3] = (uint8_t)(cal.start_eng);
+        TxMessage.Data[4] = (uint8_t)(cal.Temp.get());//надо привести к таблице температур!!!
+        TxMessage.Data[5] = 0;//Скорость трактора!
+        TxMessage.Data[6] = 0;//Reserved!
+        TxMessage.Data[7] = 0;//Reserved!
+        break;
+      case 0x003:
+        TxMessage.Data[0] = (uint8_t)(cal.OtL.get() / 16.25);//На дисплее надо * на (4.88..5)
+        TxMessage.Data[1] = (uint8_t)(cal.OtR.get() / 16.25);//На дисплее надо * на (4.88..5)
+        TxMessage.Data[2] = (uint8_t)(cal.BfL.get() / 16.25);//На дисплее надо * на (4.88..5)
+        TxMessage.Data[3] = (uint8_t)(cal.BfR.get() / 16.25);//На дисплее надо * на (4.88..5)
+        TxMessage.Data[4] = (uint8_t)(cal.F.get()   / 16.25);//На дисплее надо * на (4.88..5)
+        TxMessage.Data[5] = (uint8_t)(cal.R.get()   / 16.25);//На дисплее надо * на (4.88..5)
+        TxMessage.Data[6] = (uint8_t)(cal.One.get() / 16.25);//На дисплее надо * на (4.88..5)
+        TxMessage.Data[7] = (uint8_t)(cal.Two.get() / 16.25);//На дисплее надо * на (4.88..5)
+        break;
+      case 0x004:
+        TxMessage.Data[0] = (uint8_t)(cal.Three.get() / 16.25);//На дисплее надо * на (4.88..5)
+        TxMessage.Data[1] = 0;
+        TxMessage.Data[2] = 0;
+        TxMessage.Data[3] = 0;
+        TxMessage.Data[4] = 0;
+        TxMessage.Data[5] = 0;
+        TxMessage.Data[6] = 0;
+        TxMessage.Data[7] = 0;
+        break;
+    }
+    while(!CanTxMailBox_IsEmpty(CAN2));
+    CAN_Transmit(CAN2, &TxMessage);
+  }
 }
 void KPP::Send(CanTxMsg& TxMessage, std::pair<uint16_t, uint16_t>* data, Calibrate& cal)//Good
 {
@@ -130,7 +131,7 @@ void KPP::Send(CanTxMsg& TxMessage, std::pair<uint16_t, uint16_t>* data, Calibra
   TxMessage.Data[5] = (uint8_t)(data[5].first / cal.koef);
   TxMessage.Data[6] = (uint8_t)(data[6].first / cal.koef);
   TxMessage.Data[7] = (uint8_t)(data[7].first / cal.koef);
-  while(!cal.CanTxMailBox_IsEmpty(CAN2));
+  while(!CanTxMailBox_IsEmpty(CAN2));
   CAN_Transmit(CAN2, &TxMessage);
 
   ++TxMessage.StdId;
@@ -142,7 +143,7 @@ void KPP::Send(CanTxMsg& TxMessage, std::pair<uint16_t, uint16_t>* data, Calibra
   TxMessage.Data[5] = (uint8_t)(data[5].second / cal.koef);
   TxMessage.Data[6] = (uint8_t)(data[6].second / cal.koef);
   TxMessage.Data[7] = (uint8_t)(data[7].second / cal.koef);
-  while(!cal.CanTxMailBox_IsEmpty(CAN2));
+  while(!CanTxMailBox_IsEmpty(CAN2));
   CAN_Transmit(CAN2, &TxMessage);
 }
 void KPP::SendData(Calibrate& cal)//Good
@@ -182,7 +183,7 @@ void KPP::SendData(Calibrate& cal)//Good
     TxMessage.Data[5] = cal.d.AnalogRemoteCtrlAndRPM[i + i + 1].first  >> 8;
     TxMessage.Data[6] = cal.d.AnalogRemoteCtrlAndRPM[i + i + 1].second;
     TxMessage.Data[7] = cal.d.AnalogRemoteCtrlAndRPM[i + i + 1].second >> 8;
-    while(!cal.CanTxMailBox_IsEmpty(CAN2));
+    while(!CanTxMailBox_IsEmpty(CAN2));
     CAN_Transmit(CAN2, &TxMessage);
   }
 }
@@ -200,7 +201,7 @@ void KPP::SendDataValve(Calibrate& cal)//Пока только ОТ левый
       TxMessage.Data[(i % 9) - 1] = (uint8_t)(cal.d.Valve[0][i - 1]);
     else
     {
-      while(!cal.CanTxMailBox_IsEmpty(CAN2));
+      while(!CanTxMailBox_IsEmpty(CAN2));
       CAN_Transmit(CAN2, &TxMessage);
       ++TxMessage.StdId;
     }
@@ -459,14 +460,6 @@ void KPP::BrakeRotate(Calibrate& cal)//Good
 ////    //        //////\\   //         //    //   //  // //     //////\\     //     //        ////
 ////    ///////  //      \\  ///////  //////  //////   //   //  //      \\    //     //////    ////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-bool Calibrate::CanTxMailBox_IsEmpty(CAN_TypeDef* CANx)//Good
-{
-  if((CANx->TSR & CAN_TSR_TME0) == CAN_TSR_TME0 || (CANx->TSR & CAN_TSR_TME1) == CAN_TSR_TME1 ||
-     (CANx->TSR & CAN_TSR_TME2) == CAN_TSR_TME2)
-    return true;
-  else
-    return false;
-}
 void Calibrate::FlashWrite()//Good привести в соответствие с коментариями
 {
   const uint32_t* flash_address  = (uint32_t*)address;
@@ -520,7 +513,7 @@ void Calibrate::Valve(State& state, Pressure pres)
     TxMessage.DLC     = 1;
     TxMessage.StdId   = 0x114;
     TxMessage.Data[0] = 0x01;
-    while(!cal.CanTxMailBox_IsEmpty(CAN2));
+    while(!CanTxMailBox_IsEmpty(CAN2));
     CAN_Transmit(CAN2, &TxMessage);//статус калибровки, идет калибровка клапана.
   }
 
@@ -539,7 +532,7 @@ void Calibrate::Valve(State& state, Pressure pres)
       TxMessage.DLC     = 1;
       TxMessage.StdId   = 0x114;
       TxMessage.Data[0] = 0x00;
-      while(!cal.CanTxMailBox_IsEmpty(CAN2));
+      while(!CanTxMailBox_IsEmpty(CAN2));
       CAN_Transmit(CAN2, &TxMessage);//статус калибровки, калибровка клапана окончена.
       return;
     }
@@ -548,4 +541,20 @@ void Calibrate::Valve(State& state, Pressure pres)
   if(count >= 15 + cycle_time * (count / cycle_time))//магическое число
     PresFilter.push(static_cast<uint16_t>(pres.f * 10));
   ++count;
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////         ////////   //         //////    //////       /\       //              //////////
+//////////         //         //        //    //   //   //     //\\      //              //////////
+//////////         //   ///   //        //    //   //////     //  \\     //              //////////
+//////////         //    //   //        //    //   //   //   //////\\    //              //////////
+//////////         ////////   ///////    //////    //////   //      \\   ///////         //////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+bool CanTxMailBox_IsEmpty(CAN_TypeDef* CANx)//Good
+{
+  if((CANx->TSR & CAN_TSR_TME0) == CAN_TSR_TME0 ||
+     (CANx->TSR & CAN_TSR_TME1) == CAN_TSR_TME1 ||
+     (CANx->TSR & CAN_TSR_TME2) == CAN_TSR_TME2)
+    return true;
+  else
+    return false;
 }
