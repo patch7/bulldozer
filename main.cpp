@@ -444,18 +444,7 @@ extern "C"
       ++time_ms;
 
       //<управление клапанами в пропорциональном режиме>
-      if(SetTL);
-      if(SetTR);
-      if(SetBL);
-      if(SetBR);
-
-      if(Set1);
-      else if(Set2);
-      else if(Set3);
-
-      if(SetF)
-        kpp.GraphSetF(cal);
-      else if(SetR);
+      kpp.GraphSetF(cal);
       //</управление клапанами в пропорциональном режиме>
       
       if(!(time_ms % 10))
@@ -469,7 +458,7 @@ extern "C"
         kpp.SetClutch(cal);
         kpp.SwitchDirection(cal);
         kpp.BrakeRotate(cal);
-        kpp.RequestRpm(800);//вместо числа поставить данные с аналогово входа ручки РУД.
+        kpp.RequestRpm(cal);
       }
     }
   }
@@ -509,6 +498,10 @@ extern "C"
           case 0x112: cal.Save();                                                         break;
           case 0x113: kpp.SendData(cal);                                                  break;
           case 0x120: state = static_cast<Calibrate::State>(RxMsg.Data[0]);               break;
+          //<test>
+          case 0x121: kpp.SetPropF();                                                     break;
+          case 0x122: kpp.ResetPropF();                                                   break;
+          //</test>
           case 0x181:
             pres.i = RxMsg.Data[3] << 24 | RxMsg.Data[2] << 16 | RxMsg.Data[1] << 8 |RxMsg.Data[0];
             if(pres.f < 0)

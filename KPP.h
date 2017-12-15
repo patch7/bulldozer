@@ -240,18 +240,20 @@ public:
   void SwitchDirection(Calibrate&);
   void Parking(Calibrate&);
   void SetClutch(Calibrate&);
-  //test
-  void GraphSetF(Calibrate& cal);
   //Work with the data
   void DigitalSet(const uint16_t, Calibrate&);
   void AnalogSet(const uint16_t*, Calibrate&);
   void CurrentSet(const uint16_t*, Calibrate&);
   void Send(Calibrate&);
   void SendData(Calibrate&);
-  void RequestRpm(const uint16_t) const;
+  void RequestRpm(Calibrate&, const uint16_t x = 0) const;
   void SetRpm(const uint16_t);
-  //test
+  //<test>
   void SendDataValve(Calibrate&);
+  void GraphSetF(Calibrate& cal);
+  void SetPropF();
+  void ResetPropF();
+  //</test>
 private:
   void Send(CanTxMsg&, std::pair<uint16_t, uint16_t>*, Calibrate&);
   void PropBrakeR(const uint8_t)                   const;
@@ -285,11 +287,26 @@ private:
   void SetForward()                                const;
   void SetReverse()                                const;
 
-  uint16_t       rpm    = 0;
+  uint16_t       rpm    = 0;//Текущие обороты ДВС.
   const uint16_t maxpwm = 500;
   const uint8_t  minpwm = 0;
-  const uint8_t  resol  = 8;
+  const uint8_t  resol  = 8;//Коэффициент для оборотов ДВС
+
+  bool UseRud  = true;
+  bool PropOtL = false;
+  bool PropOtR = false;
+  bool PropBfL = false;
+  bool PropBfR = false;
+  bool PropF   = false;
+  bool PropR   = false;
+  bool Prop1   = false;
+  bool Prop2   = false;
+  bool Prop3   = false;
 };
+
+//Временная функция для отладки алгоритма пропорционального включения клапана
+inline void KPP::SetPropF()   { PropF = true; }
+inline void KPP::ResetPropF() { ResetForward(); }
 
 //inline методы должны быть включены в каждую трансляцию, так что лучше их определять в заголовке.
 inline void KPP::ResetOtL() const     { TIM_SetCompare1(TIM4, maxpwm); }//ОТ выключен
