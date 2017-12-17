@@ -204,24 +204,37 @@ void KPP::SendData(Calibrate& cal)//Good
     CAN_Transmit(CAN2, &TxMessage);
   }
 }
-//тест
-void KPP::SendDataValve(Calibrate& cal)//Пока только ОТ левый
+void KPP::SendDataValve(Calibrate& cal)
 {
   CanTxMsg TxMessage;
   TxMessage.RTR   = CAN_RTR_DATA;
   TxMessage.IDE   = CAN_ID_STD;
   TxMessage.DLC   = 8;
-  TxMessage.StdId = 0x300;
+  TxMessage.StdId = 0x250;
 
-  for(uint8_t i = 1; i <= cal.d.Valve.begin()->size(); ++i)
-    if(i % 9)
-      TxMessage.Data[(i % 9) - 1] = (uint8_t)(cal.d.Valve[0][i - 1]);
-    else
-    {
-      while(!CanTxMailBox_IsEmpty(CAN2));
-      CAN_Transmit(CAN2, &TxMessage);
-      ++TxMessage.StdId;
-    }
+  for(auto a : cal.d.Valve)
+  {
+    uint8_t rest = 0;//остаток
+    if(a.size() % TxMessage.DLC)
+      rest = TxMessage.DLC - (a.size() % TxMessage.DLC);
+
+    for(uint8_t i = 1, j = 1; i <= a.size() + rest; ++i, ++j)
+      if(i > a.size())
+        TxMessage.Data[(j % 9) - 1] = 0;
+      else if(j % 9)
+        TxMessage.Data[(j % 9) - 1] = (uint8_t)a.at(i - 1);
+      else
+      {
+        while(!CanTxMailBox_IsEmpty(CAN2));
+        CAN_Transmit(CAN2, &TxMessage);
+        ++TxMessage.StdId;
+        --i;
+      }
+
+    while(!CanTxMailBox_IsEmpty(CAN2));
+    CAN_Transmit(CAN2, &TxMessage);
+    ++TxMessage.StdId;
+  }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////       ///////   //////   | \   ||  ////////  //////    //////   //            //////////

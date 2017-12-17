@@ -497,6 +497,7 @@ extern "C"
           case 0x111: cal.ThreePres(RxMsg);                                               break;
           case 0x112: cal.Save();                                                         break;
           case 0x113: kpp.SendData(cal);                                                  break;
+          case 0x114: kpp.SendDataValve(cal);                                             break;
           case 0x120: state = static_cast<Calibrate::State>(RxMsg.Data[0]);               break;
           //<test>
           case 0x121: kpp.SetPropF();                                                     break;
