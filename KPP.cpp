@@ -172,7 +172,8 @@ void KPP::SendData(Calibrate& cal)//Good
   TxMessage.StdId = 0x210;
   Send(TxMessage, cal.d.ThreeTimePres, cal);
 
-  for(TxMessage.StdId = 0x212; TxMessage.StdId < 0x215; ++TxMessage.StdId)
+  TxMessage.StdId = 0x212;
+  for(uint8_t i = 0; TxMessage.StdId < 0x215; ++TxMessage.StdId, ++i)
   {
     TxMessage.Data[0] = cal.d.AnalogRemoteCtrlAndRPM[i + i].first ;
     TxMessage.Data[1] = cal.d.AnalogRemoteCtrlAndRPM[i + i].first  >> 8;
