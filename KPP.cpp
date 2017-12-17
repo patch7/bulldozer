@@ -46,7 +46,7 @@ void KPP::CurrentSet(const uint16_t* data, Calibrate& cal)//Good
   cal.Two.push(data[7]);
   cal.Three.push(data[8]);
 }
-void KPP::RequestRpm(const uint16_t x) const
+void KPP::RequestRpm(Calibrate& cal, const uint16_t x) const
 {
   CanTxMsg TxMessage;
   TxMessage.ExtId = 0x0C000000;
@@ -54,14 +54,31 @@ void KPP::RequestRpm(const uint16_t x) const
   TxMessage.IDE   = CAN_ID_EXT;
   TxMessage.DLC   = 8;
 
-  TxMessage.Data[0] = 0;
-  TxMessage.Data[1] = 0;
-  TxMessage.Data[2] = 0;
-  TxMessage.Data[3] = x * resol % 256;
-  TxMessage.Data[4] = x * resol / 256;
-  TxMessage.Data[5] = 0;
-  TxMessage.Data[6] = 0;
-  TxMessage.Data[7] = 0;
+  TxMessage.Data[0] = 0x01;
+  TxMessage.Data[3] = 0xFF;
+  TxMessage.Data[4] = 0xFF;
+  TxMessage.Data[5] = 0xFF;
+  TxMessage.Data[6] = 0xFF;
+  TxMessage.Data[7] = 0xFF;
+
+  if(UseRud)
+  {
+    //RPMmin + ((RPMmax-RPMmin) / ((RUDmax - RUDmin) / (Throt - RUDmin)))
+    uint16_t temp = cal.d.AnalogRemoteCtrlAndRPM[5].first  +
+                  ((cal.d.AnalogRemoteCtrlAndRPM[5].second-cal.d.AnalogRemoteCtrlAndRPM[5].first) /
+                  ((cal.d.AnalogRemoteCtrlAndRPM[0].second-cal.d.AnalogRemoteCtrlAndRPM[0].first) /
+                   (cal.Throt.get() - cal.d.AnalogRemoteCtrlAndRPM[0].first)));
+    TxMessage.Data[1] = (temp * resol) % 256;
+    TxMessage.Data[2] = (temp * resol) / 256;
+  }
+  else if(x)
+  {
+    TxMessage.Data[1] = (x * resol) % 256;
+    TxMessage.Data[2] = (x * resol) / 256;
+  }
+  else
+    return;
+
   while(!CanTxMailBox_IsEmpty(CAN2));
   CAN_Transmit(CAN2, &TxMessage);
 }
@@ -187,24 +204,37 @@ void KPP::SendData(Calibrate& cal)//Good
     CAN_Transmit(CAN2, &TxMessage);
   }
 }
-//тест
-void KPP::SendDataValve(Calibrate& cal)//Пока только ОТ левый
+void KPP::SendDataValve(Calibrate& cal)
 {
   CanTxMsg TxMessage;
   TxMessage.RTR   = CAN_RTR_DATA;
   TxMessage.IDE   = CAN_ID_STD;
   TxMessage.DLC   = 8;
-  TxMessage.StdId = 0x300;
+  TxMessage.StdId = 0x250;
 
-  for(uint8_t i = 1; i <= cal.d.Valve.begin()->size(); ++i)
-    if(i % 9)
-      TxMessage.Data[(i % 9) - 1] = (uint8_t)(cal.d.Valve[0][i - 1]);
-    else
-    {
-      while(!CanTxMailBox_IsEmpty(CAN2));
-      CAN_Transmit(CAN2, &TxMessage);
-      ++TxMessage.StdId;
-    }
+  for(auto a : cal.d.Valve)
+  {
+    uint8_t rest = 0;//остаток
+    if(a.size() % TxMessage.DLC)
+      rest = TxMessage.DLC - (a.size() % TxMessage.DLC);
+
+    for(uint8_t i = 1, j = 1; i <= a.size() + rest; ++i, ++j)
+      if(i > a.size())
+        TxMessage.Data[(j % 9) - 1] = 0;
+      else if(j % 9)
+        TxMessage.Data[(j % 9) - 1] = (uint8_t)a.at(i - 1);
+      else
+      {
+        while(!CanTxMailBox_IsEmpty(CAN2));
+        CAN_Transmit(CAN2, &TxMessage);
+        ++TxMessage.StdId;
+        --i;
+      }
+
+    while(!CanTxMailBox_IsEmpty(CAN2));
+    CAN_Transmit(CAN2, &TxMessage);
+    ++TxMessage.StdId;
+  }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////       ///////   //////   | \   ||  ////////  //////    //////   //            //////////
@@ -317,9 +347,13 @@ void KPP::SwitchDirection(Calibrate& cal)//Good привести в соотве
     {
       uint16_t temp = rpm;
       if(rpm > 810)//магическое число
-        RequestRpm(800);//магическое число
+      {
+        UseRud = false;
+        RequestRpm(cal, cal.d.AnalogRemoteCtrlAndRPM[5].first);//RPMmin, Надо узнать постоянно надо отправлять запрос ДВС или хватит одного запроса!!!
+      }
       SetDirection(cal.direction);
-      RequestRpm(temp);
+      RequestRpm(cal, temp);//есть возможность отказаться от этой строки, т.к. все равно максимум через 100 мс изменятся обороты по данным ручки РУД.
+      UseRud = true;
     }
   }
           
@@ -481,19 +515,19 @@ void Calibrate::RemoteCtrlAndRPM(uint8_t state, uint16_t data)//Good
 {
   switch(state)
   {
-    case 0x21: d.AnalogRemoteCtrlAndRPM[0].first  = Throt.get(); break;//min
-    case 0x22: d.AnalogRemoteCtrlAndRPM[1].first  = Left.get();  break;//min
-    case 0x23: d.AnalogRemoteCtrlAndRPM[2].first  = Right.get(); break;//min
-    case 0x24: d.AnalogRemoteCtrlAndRPM[3].first  = Brake.get(); break;//min
-    case 0x25: d.AnalogRemoteCtrlAndRPM[4].first  = Decel.get(); break;//min
-    case 0x26: d.AnalogRemoteCtrlAndRPM[5].first  = data;        break;//min
+    case 0x21: d.AnalogRemoteCtrlAndRPM[0].first  = Throt.get() - 25; break;//min
+    case 0x22: d.AnalogRemoteCtrlAndRPM[1].first  = Left.get()  - 25; break;//min
+    case 0x23: d.AnalogRemoteCtrlAndRPM[2].first  = Right.get() - 25; break;//min
+    case 0x24: d.AnalogRemoteCtrlAndRPM[3].first  = Brake.get() - 25; break;//min
+    case 0x25: d.AnalogRemoteCtrlAndRPM[4].first  = Decel.get() - 25; break;//min
+    case 0x26: d.AnalogRemoteCtrlAndRPM[5].first  = data;             break;//min
 
-    case 0x41: d.AnalogRemoteCtrlAndRPM[0].second = Throt.get(); break;//max
-    case 0x42: d.AnalogRemoteCtrlAndRPM[1].second = Left.get();  break;//max
-    case 0x43: d.AnalogRemoteCtrlAndRPM[2].second = Right.get(); break;//max
-    case 0x44: d.AnalogRemoteCtrlAndRPM[3].second = Brake.get(); break;//max
-    case 0x45: d.AnalogRemoteCtrlAndRPM[4].second = Decel.get(); break;//max
-    case 0x46: d.AnalogRemoteCtrlAndRPM[5].second = data;        break;//max
+    case 0x41: d.AnalogRemoteCtrlAndRPM[0].second = Throt.get() + 25; break;//max
+    case 0x42: d.AnalogRemoteCtrlAndRPM[1].second = Left.get()  + 25; break;//max
+    case 0x43: d.AnalogRemoteCtrlAndRPM[2].second = Right.get() + 25; break;//max
+    case 0x44: d.AnalogRemoteCtrlAndRPM[3].second = Brake.get() + 25; break;//max
+    case 0x45: d.AnalogRemoteCtrlAndRPM[4].second = Decel.get() + 25; break;//max
+    case 0x46: d.AnalogRemoteCtrlAndRPM[5].second = data;             break;//max
   }
 }
 //Функция вызывается раз в 10 мс, каждый 22-й (220 мс) вызов сохраняет давление и увеличивает ток клапана. После каждого увеличения тока на клапане, происходит ожидание задержки реакции электромагнита (100 мс, запас в 25 мс) и реакции клапана (стабилизации давления 50 мс, запас 25 мс). Далее в течении 70 мс (т.е. 7 раз) записывается текущее значение давления в фильтр. После заполнения фильтра записываем давление в таблицу соответствия тока давлению и увеличиваем ток.
@@ -503,7 +537,8 @@ void Calibrate::Valve(State& state, Pressure pres)
   const uint8_t current_step = 4; // 500 / 4 = 125 точек
   static uint16_t count      = 0;
 
-  auto pValve = d.Valve.begin() + static_cast<uint8_t>(state) - 1;
+  auto pValve = d.Valve.begin();
+  for(uint8_t i = 1; i < state; ++i, ++pValve);
 
   if(!count)
   {
@@ -523,8 +558,19 @@ void Calibrate::Valve(State& state, Pressure pres)
       (*pValve)[count / cycle_time - 1] = PresFilter.get();//записываем давление
     if(count / cycle_time == pValve->size())//если последняя точка
     {
+      switch(state)
+      {
+        case OtLeftV : TIM_SetCompare1(TIM4, count = 0); break;
+        case OtRightV: TIM_SetCompare2(TIM4, count = 0); break;
+        case BfLeftV : TIM_SetCompare3(TIM4, count = 0); break;
+        case BfRightV: TIM_SetCompare4(TIM4, count = 0); break;
+        case ForwardV: TIM_SetCompare4(TIM3, count = 0); break;
+        case ReverseV: TIM_SetCompare2(TIM1, count = 0); break;
+        case OneV    : TIM_SetCompare1(TIM3, count = 0); break;
+        case TwoV    : TIM_SetCompare2(TIM3, count = 0); break;
+        case ThreeV  : TIM_SetCompare3(TIM3, count = 0); break;
+      }
       state = Not;
-      TIM_SetCompare1(TIM4, count = 0);
 
       CanTxMsg TxMessage;
       TxMessage.RTR     = CAN_RTR_DATA;
@@ -536,7 +582,18 @@ void Calibrate::Valve(State& state, Pressure pres)
       CAN_Transmit(CAN2, &TxMessage);//статус калибровки, калибровка клапана окончена.
       return;
     }
-    TIM_SetCompare1(TIM4, current_step + current_step * (count / cycle_time));
+    switch(state)
+    {
+      case OtLeftV : TIM_SetCompare1(TIM4, current_step + current_step *(count/cycle_time)); break;
+      case OtRightV: TIM_SetCompare2(TIM4, current_step + current_step *(count/cycle_time)); break;
+      case BfLeftV : TIM_SetCompare3(TIM4, current_step + current_step *(count/cycle_time)); break;
+      case BfRightV: TIM_SetCompare4(TIM4, current_step + current_step *(count/cycle_time)); break;
+      case ForwardV: TIM_SetCompare4(TIM3, current_step + current_step *(count/cycle_time)); break;
+      case ReverseV: TIM_SetCompare2(TIM1, current_step + current_step *(count/cycle_time)); break;
+      case OneV    : TIM_SetCompare1(TIM3, current_step + current_step *(count/cycle_time)); break;
+      case TwoV    : TIM_SetCompare2(TIM3, current_step + current_step *(count/cycle_time)); break;
+      case ThreeV  : TIM_SetCompare3(TIM3, current_step + current_step *(count/cycle_time)); break;
+    }
   }
   if(count >= 15 + cycle_time * (count / cycle_time))//магическое число
     PresFilter.push(static_cast<uint16_t>(pres.f * 10));
