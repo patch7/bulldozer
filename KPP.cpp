@@ -40,11 +40,11 @@ void KPP::CurrentSet(const uint16_t* data, Calibrate& cal)//Good
   cal.OtR.push(data[1]);
   cal.BfL.push(data[2]);
   cal.BfR.push(data[3]);
-  cal.F.push(data[4]);
-  cal.R.push(data[5]);
-  cal.One.push(data[6]);
-  cal.Two.push(data[7]);
-  cal.Three.push(data[8]);
+  cal.One.push(data[4]);
+  cal.Two.push(data[5]);
+  cal.Three.push(data[6]);
+  cal.F.push(data[7]);
+  cal.R.push(data[8]);
 }
 void KPP::RequestRpm(Calibrate& cal, const uint16_t x) const
 {
@@ -94,37 +94,37 @@ void KPP::Send(Calibrate& cal)//Good, надо исправить в соотв�
     switch(TxMessage.StdId)
     {
       case 0x001:
-        TxMessage.Data[0] = (uint8_t)(cal.Left.get());
-        TxMessage.Data[1] = (uint8_t)(cal.Left.get() >> 8);
-        TxMessage.Data[2] = (uint8_t)(cal.Right.get());
-        TxMessage.Data[3] = (uint8_t)(cal.Right.get() >> 8);
-        TxMessage.Data[4] = (uint8_t)(cal.Throt.get());
-        TxMessage.Data[5] = (uint8_t)(cal.Throt.get() >> 8);
-        TxMessage.Data[6] = (uint8_t)(cal.Brake.get());
-        TxMessage.Data[7] = (uint8_t)(cal.Brake.get() >> 8);
+        TxMessage.Data[0] = static_cast<uint8_t>(cal.Left.get());
+        TxMessage.Data[1] = static_cast<uint8_t>(cal.Left.get() >> 8);
+        TxMessage.Data[2] = static_cast<uint8_t>(cal.Right.get());
+        TxMessage.Data[3] = static_cast<uint8_t>(cal.Right.get() >> 8);
+        TxMessage.Data[4] = static_cast<uint8_t>(cal.Throt.get());
+        TxMessage.Data[5] = static_cast<uint8_t>(cal.Throt.get() >> 8);
+        TxMessage.Data[6] = static_cast<uint8_t>(cal.Brake.get());
+        TxMessage.Data[7] = static_cast<uint8_t>(cal.Brake.get() >> 8);
         break;
       case 0x002:
-        TxMessage.Data[0] = (uint8_t)(cal.Decel.get());
-        TxMessage.Data[1] = (uint8_t)(cal.Decel.get() >> 8);
-        TxMessage.Data[2] = (uint8_t)(cal.clutch<<6|cal.reverse <<4|cal.parking <<2|cal.direction);
-        TxMessage.Data[3] = (uint8_t)(cal.start_eng);
-        TxMessage.Data[4] = (uint8_t)(cal.Temp.get());//надо привести к таблице температур!!!
+        TxMessage.Data[0] = static_cast<uint8_t>(cal.Decel.get());
+        TxMessage.Data[1] = static_cast<uint8_t>(cal.Decel.get() >> 8);
+        TxMessage.Data[2] = static_cast<uint8_t>(cal.clutch<<6|cal.reverse <<4|cal.parking <<2|cal.direction);
+        TxMessage.Data[3] = static_cast<uint8_t>(cal.start_eng);
+        TxMessage.Data[4] = static_cast<uint8_t>(cal.Temp.get());//надо привести к таблице темп.!!!
         TxMessage.Data[5] = 0;//Скорость трактора!
         TxMessage.Data[6] = 0;//Reserved!
         TxMessage.Data[7] = 0;//Reserved!
         break;
-      case 0x003:
-        TxMessage.Data[0] = (uint8_t)(cal.OtL.get() / 16.25);//На дисплее надо * на (4.88..5)
-        TxMessage.Data[1] = (uint8_t)(cal.OtR.get() / 16.25);//На дисплее надо * на (4.88..5)
-        TxMessage.Data[2] = (uint8_t)(cal.BfL.get() / 16.25);//На дисплее надо * на (4.88..5)
-        TxMessage.Data[3] = (uint8_t)(cal.BfR.get() / 16.25);//На дисплее надо * на (4.88..5)
-        TxMessage.Data[4] = (uint8_t)(cal.F.get()   / 16.25);//На дисплее надо * на (4.88..5)
-        TxMessage.Data[5] = (uint8_t)(cal.R.get()   / 16.25);//На дисплее надо * на (4.88..5)
-        TxMessage.Data[6] = (uint8_t)(cal.One.get() / 16.25);//На дисплее надо * на (4.88..5)
-        TxMessage.Data[7] = (uint8_t)(cal.Two.get() / 16.25);//На дисплее надо * на (4.88..5)
+      case 0x003://current
+        TxMessage.Data[0] = static_cast<uint8_t>(cal.OtL.get() / 16.38);//На DI3 надо * на 4.375
+        TxMessage.Data[1] = static_cast<uint8_t>(cal.OtR.get() / 16.38);//На DI3 надо * на 4.375
+        TxMessage.Data[2] = static_cast<uint8_t>(cal.BfL.get() / 16.38);//На DI3 надо * на 4.375
+        TxMessage.Data[3] = static_cast<uint8_t>(cal.BfR.get() / 16.38);//На DI3 надо * на 4.375
+        TxMessage.Data[4] = static_cast<uint8_t>(cal.F.get()   / 16.38);//На DI3 надо * на 4.375
+        TxMessage.Data[5] = static_cast<uint8_t>(cal.R.get()   / 16.38);//На DI3 надо * на 4.375
+        TxMessage.Data[6] = static_cast<uint8_t>(cal.One.get() / 16.38);//На DI3 надо * на 4.375
+        TxMessage.Data[7] = static_cast<uint8_t>(cal.Two.get() / 16.38);//На DI3 надо * на 4.375
         break;
       case 0x004:
-        TxMessage.Data[0] = (uint8_t)(cal.Three.get() / 16.25);//На дисплее надо * на (4.88..5)
+        TxMessage.Data[0] = static_cast<uint8_t>(cal.Three.get() / 16.38);//На DI3 надо * на 4.375
         TxMessage.Data[1] = 0;
         TxMessage.Data[2] = 0;
         TxMessage.Data[3] = 0;
@@ -140,30 +140,19 @@ void KPP::Send(Calibrate& cal)//Good, надо исправить в соотв�
 }
 void KPP::Send(CanTxMsg& TxMessage, std::pair<uint16_t, uint16_t>* data, Calibrate& cal)//Good
 {
-  TxMessage.Data[0] = (uint8_t)(data[0].first / cal.koef);
-  TxMessage.Data[1] = (uint8_t)(data[1].first / cal.koef);
-  TxMessage.Data[2] = (uint8_t)(data[2].first / cal.koef);
-  TxMessage.Data[3] = (uint8_t)(data[3].first / cal.koef);
-  TxMessage.Data[4] = (uint8_t)(data[4].first / cal.koef);
-  TxMessage.Data[5] = (uint8_t)(data[5].first / cal.koef);
-  TxMessage.Data[6] = (uint8_t)(data[6].first / cal.koef);
-  TxMessage.Data[7] = (uint8_t)(data[7].first / cal.koef);
+  for(uint8_t i = 0; i < TxMessage.DLC; ++i)
+    TxMessage.Data[i] = static_cast<uint8_t>(data[i].first / cal.koef);
   while(!CanTxMailBox_IsEmpty(CAN2));
   CAN_Transmit(CAN2, &TxMessage);
 
   ++TxMessage.StdId;
-  TxMessage.Data[0] = (uint8_t)(data[0].second / cal.koef);
-  TxMessage.Data[1] = (uint8_t)(data[1].second / cal.koef);
-  TxMessage.Data[2] = (uint8_t)(data[2].second / cal.koef);
-  TxMessage.Data[3] = (uint8_t)(data[3].second / cal.koef);
-  TxMessage.Data[4] = (uint8_t)(data[4].second / cal.koef);
-  TxMessage.Data[5] = (uint8_t)(data[5].second / cal.koef);
-  TxMessage.Data[6] = (uint8_t)(data[6].second / cal.koef);
-  TxMessage.Data[7] = (uint8_t)(data[7].second / cal.koef);
+
+  for(uint8_t i = 0; i < TxMessage.DLC; ++i)
+    TxMessage.Data[i] = static_cast<uint8_t>(data[i].second);
   while(!CanTxMailBox_IsEmpty(CAN2));
   CAN_Transmit(CAN2, &TxMessage);
 }
-void KPP::SendData(Calibrate& cal)//Good
+void KPP::SendData(Calibrate& cal)//Good График включения клапана и органы управления
 {
   CanTxMsg TxMessage;
   TxMessage.RTR     = CAN_RTR_DATA;
@@ -192,19 +181,19 @@ void KPP::SendData(Calibrate& cal)//Good
   TxMessage.StdId = 0x212;
   for(uint8_t i = 0; TxMessage.StdId < 0x215; ++TxMessage.StdId, ++i)
   {
-    TxMessage.Data[0] = cal.d.AnalogRemoteCtrlAndRPM[i + i].first ;
-    TxMessage.Data[1] = cal.d.AnalogRemoteCtrlAndRPM[i + i].first  >> 8;
-    TxMessage.Data[2] = cal.d.AnalogRemoteCtrlAndRPM[i + i].second;
-    TxMessage.Data[3] = cal.d.AnalogRemoteCtrlAndRPM[i + i].second >> 8;
-    TxMessage.Data[4] = cal.d.AnalogRemoteCtrlAndRPM[i + i + 1].first ;
-    TxMessage.Data[5] = cal.d.AnalogRemoteCtrlAndRPM[i + i + 1].first  >> 8;
-    TxMessage.Data[6] = cal.d.AnalogRemoteCtrlAndRPM[i + i + 1].second;
-    TxMessage.Data[7] = cal.d.AnalogRemoteCtrlAndRPM[i + i + 1].second >> 8;
+    TxMessage.Data[0] = static_cast<uint8_t>(cal.d.AnalogRemoteCtrlAndRPM[i + i].first);
+    TxMessage.Data[1] = static_cast<uint8_t>(cal.d.AnalogRemoteCtrlAndRPM[i + i].first >> 8);
+    TxMessage.Data[2] = static_cast<uint8_t>(cal.d.AnalogRemoteCtrlAndRPM[i + i].second);
+    TxMessage.Data[3] = static_cast<uint8_t>(cal.d.AnalogRemoteCtrlAndRPM[i + i].second >> 8);
+    TxMessage.Data[4] = static_cast<uint8_t>(cal.d.AnalogRemoteCtrlAndRPM[i + i + 1].first);
+    TxMessage.Data[5] = static_cast<uint8_t>(cal.d.AnalogRemoteCtrlAndRPM[i + i + 1].first >> 8);
+    TxMessage.Data[6] = static_cast<uint8_t>(cal.d.AnalogRemoteCtrlAndRPM[i + i + 1].second);
+    TxMessage.Data[7] = static_cast<uint8_t>(cal.d.AnalogRemoteCtrlAndRPM[i + i + 1].second >> 8);
     while(!CanTxMailBox_IsEmpty(CAN2));
     CAN_Transmit(CAN2, &TxMessage);
   }
 }
-void KPP::SendDataValve(Calibrate& cal)
+void KPP::SendDataValve(Calibrate& cal)//Good Таблица калибровки клапана
 {
   CanTxMsg TxMessage;
   TxMessage.RTR   = CAN_RTR_DATA;
@@ -222,7 +211,7 @@ void KPP::SendDataValve(Calibrate& cal)
       if(i > a.size())
         TxMessage.Data[(j % 9) - 1] = 0;
       else if(j % 9)
-        TxMessage.Data[(j % 9) - 1] = (uint8_t)a.at(i - 1);
+        TxMessage.Data[(j % 9) - 1] = static_cast<uint8_t>(a.at(i - 1));
       else
       {
         while(!CanTxMailBox_IsEmpty(CAN2));
@@ -243,7 +232,7 @@ void KPP::SendDataValve(Calibrate& cal)
 //////////       //       //    //  ||  \\||     //     // //    //    //  //            //////////
 //////////       ///////   //////   ||   \ |     //     //   //   //////   ///////       //////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void KPP::Parking(Calibrate& cal)//Проверить на пропорциональное управление
+void KPP::Parking(Calibrate& cal)//Исправить в соответствии с коментариями
 {
   if(cal.parking == ON && cal.parking_ch)
   {
@@ -263,7 +252,7 @@ void KPP::Parking(Calibrate& cal)//Проверить на пропорцион�
     }
   }
 }
-void KPP::ResetAllValve() const//Проверить на логику проп. управ. может надо выключать все дискретн
+void KPP::ResetAllValve() const//Good
 {
   SetOtL();
   SetOtR();
@@ -275,22 +264,16 @@ void KPP::ResetAllValve() const//Проверить на логику проп. 
   ResetForward();
   ResetReverse();
 }
-void KPP::ResetAllClutch() const//Проверить на логику проп. управ. может надо выключать все дискрет
-{
-  ResetFirst();
-  ResetSecond();
-  ResetThird();
-}
 void KPP::SetClutch(Calibrate& cal)//Проверить на пропорциональное управление
 {
-  if(cal.parking == OFF && cal.clutch_st == PLUS && cal.clutch < 3 && rpm > 350)//магическое число
-  {//за счет времени спада давления в бустере передачи, алгоритм будет соответствовать ТТ, т.е. включается необходимая передача и через 100 мс выключается предыдущая. Так ли надо управлять???
+  if(cal.parking == OFF && cal.clutch_st == PLUS && cal.clutch < 3 && rpm > 350)//magic num
+  {//за счет времени спада давления в бустере передачи, алгоритм будет соответствовать ТТ, т.е. включается необходимая передача и через 100 мс выключается предыдущая.
     OffClutch(cal);
     ++cal.clutch;
     OnClutch(cal);
     cal.clutch_st = false;
   }
-  else if(cal.parking == OFF && cal.clutch_st == MINUS && cal.clutch > 1 && rpm > 350)//magic numb
+  else if(cal.parking == OFF && cal.clutch_st == MINUS && cal.clutch > 1 && rpm > 350)//magic num
   {
     OffClutch(cal);
     --cal.clutch;
@@ -322,13 +305,13 @@ void KPP::OffClutch(Calibrate& cal) const//Good
     break;
   }
 }
-void KPP::SetDirection(const uint8_t dir) const//Проверить нужен ли этот метод
+/*void KPP::SetDirection(const uint8_t dir) const//Проверить нужен ли этот метод
 {
   if(dir == F)
     SetForward();
   else if(dir == R)
     SetReverse();
-}
+}*/
 void KPP::SwitchDirection(Calibrate& cal)//Good привести в соответствии с коментариями
 {
   if(cal.direct_ch && cal.parking == OFF)
@@ -345,15 +328,29 @@ void KPP::SwitchDirection(Calibrate& cal)//Good привести в соотве
 
     if(cal.direction)
     {
-      uint16_t temp = rpm;
-      if(rpm > 810)//магическое число
+      if(rpm > 1000)//магическое число
       {
         UseRud = false;
-        RequestRpm(cal, cal.d.AnalogRemoteCtrlAndRPM[5].first);//RPMmin, Надо узнать постоянно надо отправлять запрос ДВС или хватит одного запроса!!!
+        RequestRpm(cal, cal.d.AnalogRemoteCtrlAndRPM[5].first);//RPMmin, Надо узнать постоянно ли отправлять запрос ДВС или хватит одного!!!
       }
-      SetDirection(cal.direction);
-      RequestRpm(cal, temp);//есть возможность отказаться от этой строки, т.к. все равно максимум через 100 мс изменятся обороты по данным ручки РУД.
-      UseRud = true;
+      //SetDirection(cal.direction);
+      countFR = 1;
+
+      if(cal.direction == F)
+      {
+        pFR    = cal.d.ForwardTimePres;
+        pValve = cal.d.Valve.begin() + 4;
+        PropF  = true;
+      }
+      else if(cal.direction == R)
+      {
+        pFR    = cal.d.ReverseTimePres;
+        pValve = cal.d.Valve.begin() + 5;
+        PropR  = true;
+      }
+
+      pFR_begin = pFR;
+      pFR_end   = pFR + 7;
     }
   }
           
@@ -362,165 +359,137 @@ void KPP::SwitchDirection(Calibrate& cal)//Good привести в соотве
   else
     cal.start_eng = false;
 }
-void KPP::RightUp(uint8_t begin, uint8_t end,uint8_t right,uint8_t brake) const//Привести в соответ
+void KPP::BrakeRotate(Calibrate& cal)//Good Надо доработать чтобы клапана ОТ отключались полностью
 {
-  ResetBfR();//Дискретно, нужна задержка чтобы масло успело слиться!
-
-  if(right > begin && right < end)//приоритет у того кто сильнее тормозит
-  {
-    if(brake <= right)
-      SetOtR(right);
-    else if(brake > right && brake < end)
-      SetOtR(brake);
-    else if(brake >= end)
-      SetOtR();
-  }
-  else if(right >= end)
-    SetOtR();
-}
-void KPP::RightDown(uint8_t begin, uint8_t brake) const//Привести в соответствие с коментариями
-{
-  if(brake <= begin)
-    ResetOtR();
-  else
-    SetOtR(brake);
-  SetBfR();//должно меняться пропорционально по графику вкл. SetBfR(right)
-}
-void KPP::LeftUp(uint8_t begin, uint8_t end, uint8_t left, uint8_t brake) const//Привести в соответ
-{
-  ResetBfL();//Дискретно, нужна задержка чтобы масло успело слиться!
-
-  if(left > begin && left < end)//приоритет у того кто сильнее тормозит
-  {
-    if(brake <= left)
-      SetOtL(left);
-    else if(brake > left && brake < end)
-      SetOtL(brake);
-    else if(brake >= end)
-      SetOtL();
-  }
-  else if(left >= end)
-    SetOtL();
-}
-void KPP::LeftDown(uint8_t begin, uint8_t brake) const//Привести в соответствие с коментариями
-{
-  if(brake <= begin)
-    ResetOtL();
-  else
-    SetOtL(brake);
-  SetBfL();//должно меняться пропорционально по графику вкл. SetBfL(left)
-}
-void KPP::BrakeRotate(Calibrate& cal)//Good
-{
-  static uint8_t old_left  = 0;
-  static uint8_t old_right = 0;
-  
-  bool left_up    = false;
-  bool left_down  = false;
-  bool right_up   = false;
-  bool right_down = false;
-
-  uint8_t left  = (cal.d.AnalogRemoteCtrlAndRPM[1].second * 100 /
-                   cal.d.AnalogRemoteCtrlAndRPM[1].second) - (cal.Left.get() * 100 /
-                   cal.d.AnalogRemoteCtrlAndRPM[1].second);
-  uint8_t right = (cal.d.AnalogRemoteCtrlAndRPM[2].second * 100 /
-                   cal.d.AnalogRemoteCtrlAndRPM[2].second) - (cal.Right.get() * 100 /
-                   cal.d.AnalogRemoteCtrlAndRPM[2].second);
-  uint8_t brake =  cal.Brake.get() * 100 / cal.d.AnalogRemoteCtrlAndRPM[3].second;
-
-  if(old_left + 1 < left)//левый джойстик
-  {// +1 для избежания постоянного переключения из-за дрожания руки.
-    left_up   = true;
-    left_down = false;
-  }
-  else if(old_left - 1 > left)
-  {// -1 для избежания постоянного переключения из-за дрожания руки.
-    left_down = true;
-    left_up   = false;
-  }
-
-  if(old_right + 1 < right)//правый джойстик
-  {// +1 для избежания постоянного переключения из-за дрожания руки.
-    right_up   = true;
-    right_down = false;
-  }
-  else if(old_right - 1 > right)
-  {// -1 для избежания постоянного переключения из-за дрожания руки.
-    right_down = true;
-    right_up   = false;
-  }
-
-  old_left  = left;
-  old_right = right;
+  uint16_t left  = 500 - (cal.Left.get() - cal.d.AnalogRemoteCtrlAndRPM[1].first) *
+                   500 / (cal.d.AnalogRemoteCtrlAndRPM[1].second -
+                         cal.d.AnalogRemoteCtrlAndRPM[1].first);
+  uint16_t right = 500 - (cal.Right.get() - cal.d.AnalogRemoteCtrlAndRPM[2].first) *
+                   500 / (cal.d.AnalogRemoteCtrlAndRPM[2].second -
+                         cal.d.AnalogRemoteCtrlAndRPM[2].first);
+  uint16_t brake =       (cal.Brake.get() - cal.d.AnalogRemoteCtrlAndRPM[3].first) *
+                   500 / (cal.d.AnalogRemoteCtrlAndRPM[3].second -
+                         cal.d.AnalogRemoteCtrlAndRPM[3].first);
 
   if(cal.parking == OFF)
   {
-    const uint8_t begin =  5;
-    const uint8_t end   = 95;
+    const uint16_t begin = 25;
+    const uint16_t end   = 475;
 
-    if(left <= begin)//приоритет у того, кто сильнее тормозит
-    {
-      if(brake <= begin)
-        ResetOtL();//Дискретно, по графику или нет?
-      else if(brake > begin && brake < end)
-        SetOtL(brake);
-      else if(brake >= end)
-        SetOtL();
-    }
+    if(left <= begin)
+      SetBfL();
+    else if(left * 2 < 500)
+      SetBfL(left * 2);
+    else if(left * 2 >= 500)
+      ResetBfL();
+
+    //приоритет имеет тот орган управления, что сильнее тормозит.
+    if(left <= begin && brake <= begin)
+      ResetOtL();
+    else if(brake < end && brake >= left)//педаль тормоза сильнее!
+      SetOtL(brake);
+    else if(left  < end && brake <  left)//левый джойстик сильнее!
+      SetOtL(left);
+    else if(brake >= end || left >= end)//если кто-то на максимуме!
+      SetOtL();
+
+
     if(right <= begin)
-    {
-      if(brake <= begin)
-        ResetOtR();//нужна задержка чтобы масло успело слиться
-      else if(brake > begin && brake < end)
-        SetOtR(brake);
-      else if(brake >= end)
-        SetOtR();
-    }
+      SetBfR();
+    else if(right * 2 < 500)
+      SetBfR(right * 2);
+    else if(right * 2 >= 500)
+      ResetBfR();
 
-    if(left_up)
-      LeftUp(begin, end, left, brake);
-    else if(left_down)
-      LeftDown(begin, brake);
-    if(right_up)
-      RightUp(begin, end, right, brake);
-    else if(right_down)
-      RightDown(begin, brake);
+    //приоритет имеет тот орган управления, что сильнее тормозит.
+    if(right <= begin && brake <= begin)
+      ResetOtR();
+    else if(brake < end && brake >= right)//педаль тормоза сильнее!
+      SetOtR(brake);
+    else if(right < end && brake <  right)//правый джойстик сильнее!
+      SetOtR(right);
+    else if(brake >= end || right >= end)//если кто-то на максимуме!
+      SetOtR();
   }
 }
-void KPP::GraphSetF(Calibrate& cal)
+void KPP::GraphSetFR()//Good
 {
-  if(PropF)//надо продумать как поступить с изменением оборотов при включении/переключении.
+  if(PropF || PropR)//надо продумать как поступить с изменением оборотов при вкл/переключении.
   {
-    static uint16_t count = 1;
-    static std::pair<uint16_t, uint16_t>* m = cal.d.ForwardTimePres;
-
-    if(count == 1)//заброс давления
+    if(countFR == 1 && PropF)//заброс давления
       TIM_SetCompare4(TIM3, maxpwm);
-    else if(count == m->first)//каждая точка (1,2,3,4,5,6,7,8)
+    else if(countFR == 1 && PropR)
+      TIM_SetCompare2(TIM1, maxpwm);
+    else if(countFR >= pFR->first)//каждая точка (1,2,3,4,5,6,7,8) и если несколько точек на одно t
     {
-      uint16_t res  = std::find(cal.d.Valve[4].begin(), cal.d.Valve[4].end(), m->second) -
-                      cal.d.Valve[4].begin();
-      TIM_SetCompare4(TIM3, 4 + res * 4);
-      if(m == cal.d.ForwardTimePres + 7)
+      auto   cur = std::lower_bound(pValve->begin(), pValve->end(), pFR->second);
+      auto   prv = cur - 1;
+      double res = 0;
+
+      if(*cur != pFR->second)
+        res = prv - pValve->begin() + (pFR->second - *prv) / static_cast<double>(*cur - *prv);
+      else
+        res = cur - pValve->begin();
+
+      if(PropF)
+        TIM_SetCompare4(TIM3, static_cast<uint32_t>(mul_tim + res * mul_tim));
+      else
+        TIM_SetCompare2(TIM1, static_cast<uint32_t>(mul_tim + res * mul_tim));
+
+      if(pFR == pFR_end)
       {
-        PropF  = false;
-        count = 1;
-        m     = cal.d.ForwardTimePres;
+        if(PropF)
+          PropF = false;
+        else
+          PropR = false;
+        countFR = 1;
+        UseRud  = true;
+        //Затруднительно запросить предыдущие обороты, и все равно через 100 мс они встанут от РУД
         return;
       }
-      ++m;
+      ++pFR;
     }
-    else if(m > cal.d.ForwardTimePres && count > (m-1)->first && count < m->first)//между точек
+    else if(pFR > pFR_begin && countFR > (pFR - 1)->first && countFR < pFR->first)//между точек
     {
-      uint16_t time = m->first  - (m - 1)->first;
-      uint16_t res  = (std::find(cal.d.Valve[4].begin(), cal.d.Valve[4].end(), m->second) - 
-                       std::find(cal.d.Valve[4].begin(), cal.d.Valve[4].end(), (m-1)->second)) * 4;
-      double   pwm  = (double)(res / time) * (count - (m - 1)->first);
-      auto     temp = (std::find(cal.d.Valve[4].begin(), cal.d.Valve[4].end(), (m - 1)->second) -
-                                 cal.d.Valve[4].begin()) * 4;
-      TIM_SetCompare4(TIM3, (uint32_t)(4 + temp + pwm));
+      uint16_t time   = pFR->first - (pFR - 1)->first;
+      uint16_t res    = 0;
+      double   resFR1 = 0;
+      double   resFR2 = 0;
+
+      auto cur = std::lower_bound(pValve->begin(), pValve->end(), pFR->second);
+      auto prv = cur - 1;
+
+      if(*cur != pFR->second)//запрошена точка не из графика
+        resFR1 = prv - pValve->begin() + (pFR->second - *prv) / static_cast<double>(*cur - *prv);
+      else
+        resFR1 = cur - pValve->begin();
+
+      cur = std::lower_bound(pValve->begin(), pValve->end(), (pFR - 1)->second);
+      prv = cur - 1;
+
+      if(*cur != (pFR - 1)->second)//запрошена точка не из графика
+        resFR2 = prv - pValve->begin() + ((pFR-1)->second - *prv) / static_cast<double>(*cur-*prv);
+      else
+        resFR2 = cur - pValve->begin();
+
+      if(pFR->second >= (pFR - 1)->second)//график на возрастание
+        res = static_cast<uint16_t>(resFR1 - resFR2);
+      else
+        res = static_cast<uint16_t>(resFR2 - resFR1);
+
+      double pwm  = static_cast<double>(res * mul_tim) / time * (countFR - (pFR - 1)->first);
+      
+      if(pFR->second >= (pFR - 1)->second)
+        res = static_cast<uint16_t>(mul_tim + resFR2 * mul_tim + pwm);
+      else
+        res = static_cast<uint16_t>(mul_tim + resFR2 * mul_tim - pwm);
+
+      if(PropF)
+        TIM_SetCompare4(TIM3, static_cast<uint32_t>(res));
+      else
+        TIM_SetCompare2(TIM1, static_cast<uint32_t>(res));
     }
-    ++count;
+    ++countFR;
   }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -543,7 +512,7 @@ void Calibrate::FlashWrite()//Good привести в соответствие 
 void Calibrate::FlashRead()//Good
 {
   const uint32_t* flash_address = (uint32_t*)address;
-  uint32_t* source_address = (uint32_t*)&d;
+  uint32_t* source_address      = (uint32_t*)&d;
   for (uint16_t i = 0; i < sizeof(d); i += 4)//магическое число поменять на sizeof(uint32_t)
     *source_address++ = *(__IO uint32_t*)flash_address++;
 }
@@ -551,19 +520,39 @@ void Calibrate::RemoteCtrlAndRPM(uint8_t state, uint16_t data)//Good
 {
   switch(state)
   {
-    case 0x21: d.AnalogRemoteCtrlAndRPM[0].first  = Throt.get() - 25; break;//min
-    case 0x22: d.AnalogRemoteCtrlAndRPM[1].first  = Left.get()  - 25; break;//min
-    case 0x23: d.AnalogRemoteCtrlAndRPM[2].first  = Right.get() - 25; break;//min
-    case 0x24: d.AnalogRemoteCtrlAndRPM[3].first  = Brake.get() - 25; break;//min
-    case 0x25: d.AnalogRemoteCtrlAndRPM[4].first  = Decel.get() - 25; break;//min
-    case 0x26: d.AnalogRemoteCtrlAndRPM[5].first  = data;             break;//min
+    case 0x21:
+      if(Throt.get() - 7 <= 0)
+        d.AnalogRemoteCtrlAndRPM[0].first = 0;
+      else
+        d.AnalogRemoteCtrlAndRPM[0].first = Throt.get() - 7;         break;//min
+    case 0x22:
+      if(Left.get() - 7 <= 0)
+        d.AnalogRemoteCtrlAndRPM[1].first = 0;
+      else
+        d.AnalogRemoteCtrlAndRPM[1].first = Left.get()  - 7;         break;//min
+    case 0x23:
+      if(Right.get() - 7 <= 0)
+        d.AnalogRemoteCtrlAndRPM[2].first = 0;
+      else
+        d.AnalogRemoteCtrlAndRPM[2].first = Right.get() - 7;         break;//min
+    case 0x24:
+      if(Brake.get() - 7 <= 0)
+        d.AnalogRemoteCtrlAndRPM[3].first = 0;
+      else
+        d.AnalogRemoteCtrlAndRPM[3].first = Brake.get() - 7;         break;//min
+    case 0x25:
+      if(Decel.get() - 7 <= 0)
+        d.AnalogRemoteCtrlAndRPM[4].first = 0;
+      else
+        d.AnalogRemoteCtrlAndRPM[4].first = Decel.get() - 7;         break;//min
+    case 0x26: d.AnalogRemoteCtrlAndRPM[5].first  = data;            break;//min
 
-    case 0x41: d.AnalogRemoteCtrlAndRPM[0].second = Throt.get() + 25; break;//max
-    case 0x42: d.AnalogRemoteCtrlAndRPM[1].second = Left.get()  + 25; break;//max
-    case 0x43: d.AnalogRemoteCtrlAndRPM[2].second = Right.get() + 25; break;//max
-    case 0x44: d.AnalogRemoteCtrlAndRPM[3].second = Brake.get() + 25; break;//max
-    case 0x45: d.AnalogRemoteCtrlAndRPM[4].second = Decel.get() + 25; break;//max
-    case 0x46: d.AnalogRemoteCtrlAndRPM[5].second = data;             break;//max
+    case 0x41: d.AnalogRemoteCtrlAndRPM[0].second = Throt.get() + 7; break;//max
+    case 0x42: d.AnalogRemoteCtrlAndRPM[1].second = Left.get()  + 7; break;//max
+    case 0x43: d.AnalogRemoteCtrlAndRPM[2].second = Right.get() + 7; break;//max
+    case 0x44: d.AnalogRemoteCtrlAndRPM[3].second = Brake.get() + 7; break;//max
+    case 0x45: d.AnalogRemoteCtrlAndRPM[4].second = Decel.get() + 7; break;//max
+    case 0x46: d.AnalogRemoteCtrlAndRPM[5].second = data;            break;//max
   }
 }
 //Функция вызывается раз в 10 мс, каждый 22-й (220 мс) вызов сохраняет давление и увеличивает ток клапана. После каждого увеличения тока на клапане, происходит ожидание задержки реакции электромагнита (100 мс, запас в 25 мс) и реакции клапана (стабилизации давления 50 мс, запас 25 мс). Далее в течении 70 мс (т.е. 7 раз) записывается текущее значение давления в фильтр. После заполнения фильтра записываем давление в таблицу соответствия тока давлению и увеличиваем ток.

@@ -444,13 +444,13 @@ extern "C"
       ++time_ms;
 
       //<управление клапанами в пропорциональном режиме>
-      kpp.GraphSetF(cal);
+      kpp.GraphSetFR();
       //</управление клапанами в пропорциональном режиме>
       
       if(!(time_ms % 10))
         if(state != Calibrate::Not)
           cal.Valve(state, pres);//Калибровка клапана!
-      if(!(time_ms % 74))
+      if(!(time_ms % 24))
         kpp.Send(cal);
       if(!(time_ms % 99))
       {
@@ -499,10 +499,6 @@ extern "C"
           case 0x113: kpp.SendData(cal);                                                  break;
           case 0x114: kpp.SendDataValve(cal);                                             break;
           case 0x120: state = static_cast<Calibrate::State>(RxMsg.Data[0]);               break;
-          //<test>
-          case 0x121: kpp.SetPropF();                                                     break;
-          case 0x122: kpp.ResetPropF();                                                   break;
-          //</test>
           case 0x181:
             pres.i = RxMsg.Data[3] << 24 | RxMsg.Data[2] << 16 | RxMsg.Data[1] << 8 |RxMsg.Data[0];
             if(pres.f < 0)
