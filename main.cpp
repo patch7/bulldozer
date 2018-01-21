@@ -26,9 +26,12 @@
 #define FORWARD  (ADCPWM[7])
 #define REVERSE  (ADCPWM[8])
 
+const uint16_t DEFAULT = 0x010;
+
 static uint16_t ADCValue[6] = {0};
 static uint16_t ADCPWM[9]   = {0};
 static uint32_t time_ms     = 0;
+static uint32_t timeout     = 0;
 
 void MaxAllRccBusConfig(void);
 void DMAforADCInit(void);
@@ -231,11 +234,11 @@ void TimerInit()
 
   TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
   TIM_TimeBaseStructInit(&TIM_TimeBaseInitStruct);
-  TIM_TimeBaseInitStruct.TIM_Prescaler = 840;//Mgz*10
+  TIM_TimeBaseInitStruct.TIM_Prescaler = 839;//всегда +1, Mgz*10
   TIM_TimeBaseInitStruct.TIM_Period = 200;// 2 мс
   TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
   
-  TIM_TimeBaseInitStruct.TIM_Prescaler = 840;//Mgz*10
+  TIM_TimeBaseInitStruct.TIM_Prescaler = 839;//всегда +1, Mgz*10
   TIM_TimeBaseInitStruct.TIM_Period = 100;// 1 мс
   TIM_TimeBaseInit(TIM7, &TIM_TimeBaseInitStruct);
 
@@ -372,11 +375,11 @@ void TIM_PWMInit()
 
   TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
   TIM_TimeBaseStructInit(&TIM_TimeBaseInitStruct);
-  TIM_TimeBaseInitStruct.TIM_Prescaler = 840;
+  TIM_TimeBaseInitStruct.TIM_Prescaler = 839;//всегда +1
   TIM_TimeBaseInitStruct.TIM_Period    = 500;//200 Gz
   TIM_TimeBaseInit(TIM3, &TIM_TimeBaseInitStruct);
   TIM_TimeBaseInit(TIM4, &TIM_TimeBaseInitStruct);
-  TIM_TimeBaseInitStruct.TIM_Prescaler = 1680;//200 Gz для TIM1
+  TIM_TimeBaseInitStruct.TIM_Prescaler = 1679;//всегда +1, 200 Gz для TIM1
   TIM_TimeBaseInit(TIM1, &TIM_TimeBaseInitStruct);
 
   TIM_OCInitTypeDef TIM_OCInitStruct;
@@ -442,11 +445,18 @@ extern "C"
     {
       TIM_ClearITPendingBit(TIM7, TIM_IT_Update);
       ++time_ms;
+
+      //<управление клапанами в пропорциональном режиме>
+      kpp.GraphSetFR();
+      //</управление клапанами в пропорциональном режиме>
+
+      if(time_ms - timeout > 300)//при аварийной ситуации(обрыв кан АСУ2.0) все сигналы default
+        kpp.DigitalSet(DEFAULT);
       
       if(!(time_ms % 10))
         if(state != Calibrate::Not)
           cal.Valve(state, pres);//Калибровка клапана!
-      if(!(time_ms % 74))
+      if(!(time_ms % 24))
         kpp.Send(cal);
       if(!(time_ms % 99))
       {
@@ -454,7 +464,7 @@ extern "C"
         kpp.SetClutch(cal);
         kpp.SwitchDirection(cal);
         kpp.BrakeRotate(cal);
-        kpp.RequestRpm(800);//вместо числа поставить данные с аналогово входа ручки РУД.
+        kpp.RequestRpm(cal);
       }
     }
   }
@@ -471,7 +481,8 @@ extern "C"
       if(RxMsg.IDE == CAN_ID_STD)
         switch(RxMsg.StdId)
         {
-          case 0x005: kpp.DigitalSet(RxMsg.Data[1] << 8 | RxMsg.Data[0], cal);            break;
+          case 0x005: kpp.DigitalSet(RxMsg.Data[1] << 8 | RxMsg.Data[0], cal);
+                      timeout = time_ms;                                                  break;
           case 0x010: cal.RemoteCtrlAndRPM(RxMsg.Data[0],RxMsg.Data[2]<<8|RxMsg.Data[1]); break;
           case 0x100: cal.OtLeftTime(RxMsg);                                              break;
           case 0x101: cal.OtLeftPres(RxMsg);                                              break;
