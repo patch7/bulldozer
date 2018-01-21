@@ -14,7 +14,10 @@ void KPP::DigitalSet(const uint16_t data, Calibrate& cal)//Good
     cal.parking_ch = false;
 
   if(cal.direction != (0x0003 & data))
+  {
     cal.direct_ch  = true;
+    cal.old_direct = cal.direction;
+  }
   else
     cal.direct_ch  = false;
   
@@ -22,8 +25,8 @@ void KPP::DigitalSet(const uint16_t data, Calibrate& cal)//Good
   cal.clutch_st   = 0x0003 & (data >> 2);
   cal.parking     = 0x0003 & (data >> 4);
   cal.reverse     = 0x0003 & (data >> 6);
-  cal.oil_filter  = 0x0001 & (data >> 8);
-  cal.d_generator = 0x0001 & (data >> 9);
+  //cal.oil_filter  = 0x0001 & (data >> 8);
+  //cal.d_generator = 0x0001 & (data >> 9);
 }
 void KPP::AnalogSet(const uint16_t* data, Calibrate& cal)//Good
 {
@@ -305,27 +308,10 @@ void KPP::OffClutch(Calibrate& cal) const//Good
     break;
   }
 }
-/*void KPP::SetDirection(const uint8_t dir) const//Проверить нужен ли этот метод
-{
-  if(dir == F)
-    SetForward();
-  else if(dir == R)
-    SetReverse();
-}*/
 void KPP::SwitchDirection(Calibrate& cal)//Good привести в соответствии с коментариями
 {
   if(cal.direct_ch && cal.parking == OFF)
   {
-    if(cal.direction == N)
-    {
-      ResetForward();
-      ResetReverse();
-    }
-    else if(cal.direction == F)
-      ResetReverse();
-    else if(cal.direction == R)
-      ResetForward();
-
     if(cal.direction)
     {
       if(rpm > 1000)//магическое число
@@ -333,24 +319,43 @@ void KPP::SwitchDirection(Calibrate& cal)//Good привести в соотве
         UseRud = false;
         RequestRpm(cal, cal.d.AnalogRemoteCtrlAndRPM[5].first);//RPMmin, Надо узнать постоянно ли отправлять запрос ДВС или хватит одного!!!
       }
-      //SetDirection(cal.direction);
       countFR = 1;
 
       if(cal.direction == F)
       {
+        PropR  = false;
+        ResetReverse();
+        if(cal.reverse && cal.old_direct == R && cal.clutch > 1)
+        {
+          OffClutch(cal);
+          --cal.clutch;
+          OnClutch(cal);
+        }
         pFR    = cal.d.ForwardTimePres;
         pValve = cal.d.Valve.begin() + 4;
         PropF  = true;
       }
       else if(cal.direction == R)
       {
+        PropF  = false;
+        ResetForward();
+        if(cal.reverse && cal.old_direct == F && cal.clutch < 3)
+        {
+          OffClutch(cal);
+          ++cal.clutch;
+          OnClutch(cal);
+        }
         pFR    = cal.d.ReverseTimePres;
         pValve = cal.d.Valve.begin() + 5;
         PropR  = true;
       }
-
       pFR_begin = pFR;
       pFR_end   = pFR + 7;
+    }
+    else
+    {
+      ResetForward();
+      ResetReverse();
     }
   }
           

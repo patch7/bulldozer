@@ -49,12 +49,12 @@ public:
     old_direct(0),
     oil_filter(0),
     parking_ch(0),
-    direction(0), 
+    direction(0),
     clutch_st(0),
-    reverse(0),  
+    reverse(0),
     start_eng(0),
-    clutch_ch(0), 
-    parking(1),  
+    clutch_ch(0),
+    parking(1),
     direct_ch(0),
     clutch(0) { FlashRead(); }
   Calibrate(const Calibrate&)            = delete;
@@ -117,8 +117,8 @@ private:
   uint8_t reverse    : 2;//00 - off,  01 - on,  10 - res,  11 - Don't care
   uint8_t clutch     : 2;//00 - 0,    01 - 1,   10 - 2,    11 - 3
   uint8_t old_direct : 2;//00 - N,    01 - F,   10 - R,    11 - Not available
-  uint8_t oil_filter : 1;//true/false
-  uint8_t d_generator: 1;//true/false
+  //uint8_t oil_filter : 1;//true/false
+  //uint8_t d_generator: 1;//true/false
   uint8_t start_eng  : 1;//true/false
   uint8_t parking_ch : 1;//true/false
   uint8_t clutch_ch  : 1;//true/false
@@ -228,7 +228,6 @@ public:
   ~KPP()                      = default;
 
   //logic control
-  //void SetDirection(const uint8_t)   const;
   void BrakeRotate(Calibrate&);
   void SwitchDirection(Calibrate&);
   void Parking(Calibrate&);
@@ -287,6 +286,7 @@ private:
   std::pair<uint16_t, uint16_t>* pFR_begin = nullptr;
   std::pair<uint16_t, uint16_t>* pFR_end   = nullptr;
   std::array<std::array<uint16_t, 125>, 9>::const_iterator pValve;
+
   uint16_t       countFR = 1;
   uint16_t       rpm     = 0;//Текущие обороты ДВС.
   const uint16_t maxpwm  = 500;
@@ -295,10 +295,6 @@ private:
   const uint8_t  mul_tim = 4;//Коэффициент для заполнения ШИМ
 
   bool UseRud  = true;
-  bool PropOtL = false;
-  bool PropOtR = false;
-  bool PropBfL = false;
-  bool PropBfR = false;
   bool PropF   = false;
   bool PropR   = false;
   bool Prop1   = false;
