@@ -451,7 +451,7 @@ extern "C"
       //</управление клапанами в пропорциональном режиме>
 
       if(time_ms - timeout > 300)//при аварийной ситуации(обрыв кан АСУ2.0) все сигналы default
-        kpp.DigitalSet(DEFAULT);
+        kpp.DigitalSet(DEFAULT, cal);
       
       if(!(time_ms % 10))
         if(state != Calibrate::Not)
