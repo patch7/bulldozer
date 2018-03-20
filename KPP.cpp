@@ -111,7 +111,7 @@ void KPP::Send(Calibrate& cal)//Good, надо исправить в соотв�
         TxMessage.Data[1] = static_cast<uint8_t>(cal.Decel.get() >> 8);
         TxMessage.Data[2] = static_cast<uint8_t>(cal.clutch  << 6 | cal.reverse << 4 |
                                                  cal.parking << 2 | cal.direction);
-        TxMessage.Data[3] = static_cast<uint8_t>(cal.start_eng);
+        TxMessage.Data[3] = static_cast<uint8_t>(cal.oil_filter << 1 | cal.start_eng);
         TxMessage.Data[4] = static_cast<uint8_t>(cal.Temp.get());//надо привести к таблице темп.!!!
         TxMessage.Data[5] = 0;//Скорость трактора!
         TxMessage.Data[6] = 0;//Reserved!

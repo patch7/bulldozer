@@ -500,8 +500,9 @@ extern "C"
       if(RxMsg.IDE == CAN_ID_STD)
         switch(RxMsg.StdId)
         {
-          case 0x005: kpp.DigitalSet(RxMsg.Data[1] << 8 | RxMsg.Data[0], cal);
-                      timeout = time_ms;                                                  break;
+          case 0x005:
+            kpp.DigitalSet(RxMsg.Data[4] << 8 | RxMsg.Data[0], cal);
+            timeout = time_ms;                                                            break;
           case 0x010: cal.RemoteCtrlAndRPM(RxMsg.Data[0],RxMsg.Data[2]<<8|RxMsg.Data[1]); break;
           case 0x100: cal.OtLeftTime(RxMsg);                                              break;
           case 0x101: cal.OtLeftPres(RxMsg);                                              break;
