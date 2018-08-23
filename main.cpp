@@ -8,6 +8,7 @@
 #include "stm32f4xx_tim.h"
 #include "sliding_median.h"
 #include "KPP.h"
+#include "torque converter.h"
 
 #define LEFT     (ADCValue[0])
 #define RIGHT    (ADCValue[1])
@@ -25,11 +26,13 @@
 #define THIRD    (ADCPWM[6])
 #define FORWARD  (ADCPWM[7])
 #define REVERSE  (ADCPWM[8])
+#define LOCK_V   (ADCPWM[9])
+#define BRAKE_V  (ADCPWM[10])
 
 const uint16_t DEFAULT = 0x010;
 
 static uint16_t ADCValue[6] = {0};
-static uint16_t ADCPWM[9]   = {0};
+static uint16_t ADCPWM[11]  = {0};
 static uint32_t time_ms     = 0;
 static uint32_t timeout     = 0;
 
@@ -45,21 +48,22 @@ Pressure pres;
 Calibrate::State state = Calibrate::Not;
 Calibrate cal(9);
 KPP       kpp;
+TC        tc;
 
 void main()
 {
   MaxAllRccBusConfig();
   FlashInit();
   
-  GPIO_DeInit(GPIOA);//CAN1, ADC2ch1, ADC2ch4, ADC2ch5, ADC2ch7, TIM1-PWM
-  GPIO_DeInit(GPIOB);//TIM4-PWM, CAN2, ADC2ch8
-  GPIO_DeInit(GPIOC);//ADC3ch10, ADC3ch11, ADC2ch12-ADC2ch15, TIM3-PWM
-  GPIO_DeInit(GPIOF);//ADC3ch4, ADC3ch6-ADC3ch8
+  GPIO_DeInit(GPIOA);//CAN1, ADC2(ch1, ch3 - ch7), TIM1(ch1 - ch3)
+  GPIO_DeInit(GPIOB);//CAN2, ADC2ch8, TIM2ch4, TIM4(ch1 - ch4)
+  GPIO_DeInit(GPIOC);//ADC3(ch10, ch11), ADC2(ch12 - ch15), TIM3(ch1 - ch4)
+  GPIO_DeInit(GPIOF);//ADC3(ch4, ch6 - ch8)
   
-  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);//CAN1, ADC2ch1, ADC2ch4, ADC2ch5, ADC2ch7, TIM1-PWM
-  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);//TIM4-PWM, CAN2, ADC2ch8
-  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);//ADC3ch10, ADC3ch11, ADC2ch12-ADC2ch15, TIM3-PWM
-  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOF, ENABLE);//ADC3ch4, ADC3ch6-ADC3ch8
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOF, ENABLE);
   
   CANInit();
   DMAforADCInit();
@@ -131,7 +135,7 @@ void DMAforADCInit()
   DMA_InitStruct.DMA_Channel            = DMA_Channel_1;
   DMA_InitStruct.DMA_PeripheralBaseAddr = (uint32_t)&(ADC2->DR);
   DMA_InitStruct.DMA_Memory0BaseAddr    = (uint32_t)ADCPWM;
-  DMA_InitStruct.DMA_BufferSize         = 9;
+  DMA_InitStruct.DMA_BufferSize         = 11;
   DMA_Init(DMA2_Stream2, &DMA_InitStruct);
   
   DMA_ITConfig(DMA2_Stream0, DMA_IT_TC, ENABLE);//если прерывание ненадо, можно ли убрать
@@ -161,18 +165,18 @@ void ADCInputInit()
 
   GPIO_InitTypeDef GPIO_InitStruct;
   GPIO_StructInit(&GPIO_InitStruct);
-  
-  GPIO_InitStruct.GPIO_Pin   = GPIO_Pin_1 | GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_7;
+  //                             ADC2ch1    ADC2ch3    ADC2ch4    ADC2ch5    ADC2ch6    ADC2ch7
+  GPIO_InitStruct.GPIO_Pin   = GPIO_Pin_1|GPIO_Pin_3|GPIO_Pin_4|GPIO_Pin_5|GPIO_Pin_6|GPIO_Pin_7;
   GPIO_InitStruct.GPIO_Mode  = GPIO_Mode_AN;
   GPIO_InitStruct.GPIO_Speed = GPIO_High_Speed;
   GPIO_Init(GPIOA, &GPIO_InitStruct);
-  
+  //                             ADC2ch8
   GPIO_InitStruct.GPIO_Pin   = GPIO_Pin_0;
   GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  GPIO_InitStruct.GPIO_Pin   = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 | GPIO_Pin_4 | GPIO_Pin_5;
+  //                            ADC3ch10   ADC3ch11   ADC2ch12   ADC2ch13   ADC2ch14   ADC2ch15
+  GPIO_InitStruct.GPIO_Pin   = GPIO_Pin_0|GPIO_Pin_1|GPIO_Pin_2|GPIO_Pin_3|GPIO_Pin_4|GPIO_Pin_5;
   GPIO_Init(GPIOC, &GPIO_InitStruct);
-  
+  //                             ADC3ch4      ADC3ch6      ADC3ch7      ADC3ch8
   GPIO_InitStruct.GPIO_Pin   = GPIO_Pin_6 | GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10;
   GPIO_Init(GPIOF, &GPIO_InitStruct);
 
@@ -184,13 +188,13 @@ void ADCInputInit()
   ADC_StructInit(&ADC_InitStruct);
 
   ADC_InitStruct.ADC_ScanConvMode         = ENABLE;
-  ADC_InitStruct.ADC_ExternalTrigConv     = ADC_ExternalTrigConv_T2_CC2;
+  ADC_InitStruct.ADC_ExternalTrigConv     = ADC_ExternalTrigConv_T5_CC1;
   ADC_InitStruct.ADC_ExternalTrigConvEdge = ADC_ExternalTrigConvEdge_RisingFalling;
   ADC_InitStruct.ADC_NbrOfConversion      = 6;
   //ADC_InitStruct.ADC_ContinuousConvMode   = ENABLE;
   ADC_Init(ADC3, &ADC_InitStruct);
   
-  ADC_InitStruct.ADC_NbrOfConversion      = 9;
+  ADC_InitStruct.ADC_NbrOfConversion      = 11;
   ADC_Init(ADC2, &ADC_InitStruct);
 
   ADC_RegularChannelConfig(ADC3, ADC_Channel_6,  1, ADC_SampleTime_480Cycles);
@@ -200,15 +204,17 @@ void ADCInputInit()
   ADC_RegularChannelConfig(ADC3, ADC_Channel_11, 5, ADC_SampleTime_480Cycles);
   ADC_RegularChannelConfig(ADC3, ADC_Channel_4,  6, ADC_SampleTime_480Cycles);
   
-  ADC_RegularChannelConfig(ADC2, ADC_Channel_1,  1, ADC_SampleTime_480Cycles);//OT left
-  ADC_RegularChannelConfig(ADC2, ADC_Channel_4,  2, ADC_SampleTime_480Cycles);//OT right
-  ADC_RegularChannelConfig(ADC2, ADC_Channel_13, 3, ADC_SampleTime_480Cycles);//BF left
-  ADC_RegularChannelConfig(ADC2, ADC_Channel_12, 4, ADC_SampleTime_480Cycles);//BF right
-  ADC_RegularChannelConfig(ADC2, ADC_Channel_8,  5, ADC_SampleTime_480Cycles);//1
-  ADC_RegularChannelConfig(ADC2, ADC_Channel_7,  6, ADC_SampleTime_480Cycles);//2
-  ADC_RegularChannelConfig(ADC2, ADC_Channel_5,  7, ADC_SampleTime_480Cycles);//3
-  ADC_RegularChannelConfig(ADC2, ADC_Channel_15, 8, ADC_SampleTime_480Cycles);//Forward
-  ADC_RegularChannelConfig(ADC2, ADC_Channel_14, 9, ADC_SampleTime_480Cycles);//Reverse
+  ADC_RegularChannelConfig(ADC2, ADC_Channel_1,  1,  ADC_SampleTime_480Cycles);//OT left
+  ADC_RegularChannelConfig(ADC2, ADC_Channel_4,  2,  ADC_SampleTime_480Cycles);//OT right
+  ADC_RegularChannelConfig(ADC2, ADC_Channel_13, 3,  ADC_SampleTime_480Cycles);//BF left
+  ADC_RegularChannelConfig(ADC2, ADC_Channel_12, 4,  ADC_SampleTime_480Cycles);//BF right
+  ADC_RegularChannelConfig(ADC2, ADC_Channel_8,  5,  ADC_SampleTime_480Cycles);//1
+  ADC_RegularChannelConfig(ADC2, ADC_Channel_7,  6,  ADC_SampleTime_480Cycles);//2
+  ADC_RegularChannelConfig(ADC2, ADC_Channel_5,  7,  ADC_SampleTime_480Cycles);//3
+  ADC_RegularChannelConfig(ADC2, ADC_Channel_15, 8,  ADC_SampleTime_480Cycles);//Forward
+  ADC_RegularChannelConfig(ADC2, ADC_Channel_14, 9,  ADC_SampleTime_480Cycles);//Reverse
+  ADC_RegularChannelConfig(ADC2, ADC_Channel_6,  10, ADC_SampleTime_480Cycles);//Lock valve
+  ADC_RegularChannelConfig(ADC2, ADC_Channel_3,  11, ADC_SampleTime_480Cycles);//Reactor brake
 
   //Запрос после последней передачи, без него не работает
   ADC_DMARequestAfterLastTransferCmd(ADC3, ENABLE);
@@ -216,6 +222,7 @@ void ADCInputInit()
   ADC_DMACmd(ADC3, ENABLE);
   ADC_DMACmd(ADC2, ENABLE);
   //ADC_ContinuousModeCmd(ADC3, ENABLE);
+  //ADC_ContinuousModeCmd(ADC2, ENABLE);
   ADC_Cmd(ADC3, ENABLE);
   ADC_Cmd(ADC2, ENABLE);
   ADC_SoftwareStartConv(ADC3);
@@ -226,38 +233,36 @@ void ADCInputInit()
 ******************************************************************************/
 void TimerInit()
 {
-  TIM_DeInit(TIM2);
   TIM_DeInit(TIM7);
+  TIM_DeInit(TIM5);
   
-  RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
   RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM7, ENABLE);
+  RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM5, ENABLE);
 
   TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
   TIM_TimeBaseStructInit(&TIM_TimeBaseInitStruct);
   TIM_TimeBaseInitStruct.TIM_Prescaler = 839;//всегда +1, Mgz*10
   TIM_TimeBaseInitStruct.TIM_Period = 200;// 2 мс
-  TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
-  
-  TIM_TimeBaseInitStruct.TIM_Prescaler = 839;//всегда +1, Mgz*10
+  TIM_TimeBaseInit(TIM5, &TIM_TimeBaseInitStruct);
+
   TIM_TimeBaseInitStruct.TIM_Period = 100;// 1 мс
   TIM_TimeBaseInit(TIM7, &TIM_TimeBaseInitStruct);
 
-  //Настройка канала ОС2 необходима чтобы сканирование АЦП происходило по прерыванию. Так же ненужна настройка самой ноги GPIOх
-  TIM_SetCounter(TIM2, 0);
+  //Настройка канала ОС1 необходима чтобы сканирование АЦП происходило по прерыванию. Так же ненужна настройка самой ноги GPIOх
+  TIM_SetCounter(TIM5, 0);
   TIM_OCInitTypeDef TIM_OCInitStruct;
-  TIM_OCInitStruct.TIM_OCMode = TIM_OCMode_PWM1;
+  TIM_OCStructInit(&TIM_OCInitStruct);
+  TIM_OCInitStruct.TIM_OCMode      = TIM_OCMode_PWM1;
   TIM_OCInitStruct.TIM_OutputState = TIM_OutputState_Enable;
-  TIM_OCInitStruct.TIM_Pulse = 100;//в 2 раза быстрее чем таймер 2
-  TIM_OCInitStruct.TIM_OCPolarity = TIM_OCPolarity_Low;
-  TIM_OCInitStruct.TIM_OCIdleState = TIM_OCIdleState_Reset;
-  TIM_OC2Init(TIM2, &TIM_OCInitStruct);
+  TIM_OCInitStruct.TIM_Pulse = 100;//в 2 раза быстрее чем таймер 8
+  TIM_OC1Init(TIM5, &TIM_OCInitStruct);
 
-  TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);//разрешаем прерывание по переполнению
+  TIM_ITConfig(TIM5, TIM_IT_Update, ENABLE);//разрешаем прерывание по переполнению
   TIM_ITConfig(TIM7, TIM_IT_Update, ENABLE);//разрешаем прерывание по переполнению
-  NVIC_EnableIRQ(TIM2_IRQn);
+  NVIC_EnableIRQ(TIM5_IRQn);
   NVIC_EnableIRQ(TIM7_IRQn);
   
-  TIM_Cmd(TIM2, ENABLE);
+  TIM_Cmd(TIM5, ENABLE);
   TIM_Cmd(TIM7, ENABLE);
 }
 void CANInit()
@@ -343,14 +348,17 @@ void CANInit()
 void TIM_PWMInit()
 {
   TIM_DeInit(TIM1);
+  TIM_DeInit(TIM2);
   TIM_DeInit(TIM3);
   TIM_DeInit(TIM4);
   
   RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1, ENABLE);
-  RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3 | RCC_APB1Periph_TIM4, ENABLE);
+  RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2 | RCC_APB1Periph_TIM3 | RCC_APB1Periph_TIM4, ENABLE);
 
-  GPIO_PinAFConfig(GPIOA, GPIO_PinSource8, GPIO_AF_TIM1);
   GPIO_PinAFConfig(GPIOA, GPIO_PinSource9, GPIO_AF_TIM1);
+  GPIO_PinAFConfig(GPIOA, GPIO_PinSource10, GPIO_AF_TIM1);
+
+  GPIO_PinAFConfig(GPIOB, GPIO_PinSource11, GPIO_AF_TIM2);
   
   GPIO_PinAFConfig(GPIOC, GPIO_PinSource6, GPIO_AF_TIM3);
   GPIO_PinAFConfig(GPIOC, GPIO_PinSource7, GPIO_AF_TIM3);
@@ -364,31 +372,39 @@ void TIM_PWMInit()
   
   GPIO_InitTypeDef GPIO_InitStructure;
   GPIO_StructInit(&GPIO_InitStructure);
-  GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_8 | GPIO_Pin_9;
+  GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_9 | GPIO_Pin_10;
   GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
   GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_AF;
   GPIO_InitStructure.GPIO_Speed = GPIO_Fast_Speed;//Максимальная скорость для работы ШИМ
   GPIO_Init(GPIOA, &GPIO_InitStructure);//TIM1
+
+  GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_11;
+  GPIO_Init(GPIOB, &GPIO_InitStructure);//TIM2
+
   GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_8 | GPIO_Pin_9;
   GPIO_Init(GPIOC, &GPIO_InitStructure);//TIM3
   GPIO_Init(GPIOB, &GPIO_InitStructure);//TIM4
 
   TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
   TIM_TimeBaseStructInit(&TIM_TimeBaseInitStruct);
+  TIM_TimeBaseInitStruct.TIM_Prescaler = 1679;//всегда +1, TIM1 - 168GHz
+  TIM_TimeBaseInitStruct.TIM_Period    = 500;//200 Hz
+  TIM_TimeBaseInit(TIM1, &TIM_TimeBaseInitStruct);
+
   TIM_TimeBaseInitStruct.TIM_Prescaler = 839;//всегда +1
-  TIM_TimeBaseInitStruct.TIM_Period    = 500;//200 Gz
+  TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
   TIM_TimeBaseInit(TIM3, &TIM_TimeBaseInitStruct);
   TIM_TimeBaseInit(TIM4, &TIM_TimeBaseInitStruct);
-  TIM_TimeBaseInitStruct.TIM_Prescaler = 1679;//всегда +1, 200 Gz для TIM1
-  TIM_TimeBaseInit(TIM1, &TIM_TimeBaseInitStruct);
 
   TIM_OCInitTypeDef TIM_OCInitStruct;
   TIM_OCStructInit(&TIM_OCInitStruct);
   TIM_OCInitStruct.TIM_OCMode      = TIM_OCMode_PWM1;
   TIM_OCInitStruct.TIM_OutputState = TIM_OutputState_Enable;
   TIM_OCInitStruct.TIM_Pulse       = 0;
-  TIM_OC1Init(TIM1, &TIM_OCInitStruct);
   TIM_OC2Init(TIM1, &TIM_OCInitStruct);
+  TIM_OC3Init(TIM1, &TIM_OCInitStruct);
+
+  TIM_OC4Init(TIM2, &TIM_OCInitStruct);
   
   TIM_OC1Init(TIM3, &TIM_OCInitStruct);
   TIM_OC2Init(TIM3, &TIM_OCInitStruct);
@@ -404,13 +420,11 @@ void TIM_PWMInit()
   //TIM_ARRPreloadConfig(TIM4, ENABLE);//разрешает предварительную загрузку в регистр ARR
 
   TIM_Cmd(TIM1, ENABLE);
+  TIM_Cmd(TIM2, ENABLE);
   TIM_Cmd(TIM3, ENABLE);
   TIM_Cmd(TIM4, ENABLE);
   
   TIM_CtrlPWMOutputs(TIM1, ENABLE);//Необходимо для таймера 1, т.к. у него есть регистр BDTR
-
-  //TIM_ITConfig(TIM4, TIM_IT_Update, ENABLE);//разрешаем прерывание по переполнению
-  //NVIC_EnableIRQ(TIM4_IRQn);
 }
 
 extern "C"
@@ -433,12 +447,12 @@ extern "C"
       kpp.CurrentSet(ADCPWM, cal);
     }
   }
-  void TIM2_IRQHandler()
+  void TIM5_IRQHandler()
   {
-    if(TIM_GetITStatus(TIM2, TIM_IT_Update))
-      TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
+    if(TIM_GetITStatus(TIM5, TIM_IT_Update))
+      TIM_ClearITPendingBit(TIM5, TIM_IT_Update);
   }
-  //Прерывание по TIM7-1 мс. Ведем отсчет времени, шлем в CAN аналоговые и дискретные сигналы.
+  //Прерывание по TIM7-1 мс. Ведем отсчет времени, шлём в CAN аналоговые и дискретные сигналы.
   void TIM7_IRQHandler()
   {
     if(TIM_GetITStatus(TIM7, TIM_IT_Update))
@@ -446,9 +460,7 @@ extern "C"
       TIM_ClearITPendingBit(TIM7, TIM_IT_Update);
       ++time_ms;
 
-      //<управление клапанами в пропорциональном режиме>
-      kpp.GraphSetFR();
-      //</управление клапанами в пропорциональном режиме>
+      kpp.GraphSetFR();//управление клапанами в пропорциональном режиме
 
       if(time_ms - timeout > 300)//при аварийной ситуации(обрыв кан АСУ2.0) все сигналы default
         kpp.DigitalSet(DEFAULT, cal);
@@ -465,6 +477,13 @@ extern "C"
         kpp.SwitchDirection(cal);
         kpp.BrakeRotate(cal);
         kpp.RequestRpm(cal);
+
+        if(cal.Parking_Is_On())
+          tc.reset();//очень часто вызывается
+        else if(cal.Filter_Is_On())
+          tc.lock();//очень часто вызывается
+        else
+          tc.unlock();//очень часто вызывается
       }
     }
   }
@@ -481,8 +500,9 @@ extern "C"
       if(RxMsg.IDE == CAN_ID_STD)
         switch(RxMsg.StdId)
         {
-          case 0x005: kpp.DigitalSet(RxMsg.Data[1] << 8 | RxMsg.Data[0], cal);
-                      timeout = time_ms;                                                  break;
+          case 0x005:
+            kpp.DigitalSet(RxMsg.Data[4] << 8 | RxMsg.Data[0], cal);
+            timeout = time_ms;                                                            break;
           case 0x010: cal.RemoteCtrlAndRPM(RxMsg.Data[0],RxMsg.Data[2]<<8|RxMsg.Data[1]); break;
           case 0x100: cal.OtLeftTime(RxMsg);                                              break;
           case 0x101: cal.OtLeftPres(RxMsg);                                              break;
@@ -515,7 +535,7 @@ extern "C"
       else
         switch(RxMsg.ExtId)
         {
-          case 0x0CF00400: kpp.SetRpm(RxMsg.Data[4] * 256 + RxMsg.Data[3]); break;
+          case 0x0CF00400: kpp.SetRpm(RxMsg.Data[4] << 8 | RxMsg.Data[3]); break;
         }
     }
   }

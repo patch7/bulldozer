@@ -47,7 +47,7 @@ public:
     PresFilter(7),
     //d_generator(0),
     old_direct(0),
-    //oil_filter(0),
+    oil_filter(0),
     parking_ch(0),
     direction(0),
     clutch_st(0),
@@ -81,12 +81,15 @@ public:
   void TwoPres(CanRxMsg&);
   void ThreeTime(CanRxMsg&);
   void ThreePres(CanRxMsg&);
+  bool Filter_Is_On()  const;
+  bool Parking_Is_On() const;
+  //bool Parking_Is_Change();
 
-  void Save();
+  void Save() const;
   void Valve(State&, Pressure);
   void RemoteCtrlAndRPM(uint8_t, uint16_t);
 private:
-  void FlashWrite();
+  void FlashWrite() const;
   void FlashRead();
 
   static const uint32_t address = 0x08060000;
@@ -104,7 +107,7 @@ private:
     std::pair<uint16_t, uint16_t> ThreeTimePres[8];
     std::pair<uint16_t, uint16_t> AnalogRemoteCtrlAndRPM[6];// Rud; Left; Right; Brake; Decl; RPM;
     //номер каждого элемента массива соответствует значению регистра таймера умноженного на 4, в каждом массиве храним значение давления умноженное на 10.
-    std::array<std::array<uint16_t, 125>, 9> Valve;//OTl, OTr, BFl, BFr, F, R, One, Two, Three
+    std::array<std::array<uint16_t, 125>, 9> Valve;//OTl, OTr, BFl, BFr, F, R, 1, 2, 3
   }d;
 
   SM Left, Right, Throt, Brake, Decel, Temp, OtL, OtR, BfL, BfR, F, R, One, Two, Three, PresFilter;
@@ -117,7 +120,7 @@ private:
   uint8_t reverse    : 2;//00 - off,  01 - on,  10 - res,  11 - Don't care
   uint8_t clutch     : 2;//00 - 0,    01 - 1,   10 - 2,    11 - 3
   uint8_t old_direct : 2;//00 - N,    01 - F,   10 - R,    11 - Not available
-  //uint8_t oil_filter : 1;//true/false
+  uint8_t oil_filter : 1;//true/false
   //uint8_t d_generator: 1;//true/false
   uint8_t start_eng  : 1;//true/false
   uint8_t parking_ch : 1;//true/false
@@ -125,7 +128,10 @@ private:
   uint8_t direct_ch  : 1;//true/false
 };
 
-inline void Calibrate::Save() { FlashWrite(); }
+inline bool Calibrate::Filter_Is_On()  const     { return oil_filter; }
+inline bool Calibrate::Parking_Is_On() const     { return parking; }
+//inline bool Calibrate::Parking_Is_Change() { return parking_ch; }
+inline void Calibrate::Save() const { FlashWrite(); }
 inline void Calibrate::OtLeftTime(CanRxMsg& RxMsg)
 {
   for(uint8_t i = 0; i < RxMsg.DLC; ++i)

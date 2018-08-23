@@ -25,7 +25,7 @@ void KPP::DigitalSet(const uint16_t data, Calibrate& cal)//Good
   cal.clutch_st   = 0x0003 & (data >> 2);
   cal.parking     = 0x0003 & (data >> 4);
   cal.reverse     = 0x0003 & (data >> 6);
-  //cal.oil_filter  = 0x0001 & (data >> 8);
+  cal.oil_filter  = 0x0001 & (data >> 8);
   //cal.d_generator = 0x0001 & (data >> 9);
 }
 void KPP::AnalogSet(const uint16_t* data, Calibrate& cal)//Good
@@ -109,8 +109,9 @@ void KPP::Send(Calibrate& cal)//Good, надо исправить в соотв�
       case 0x002:
         TxMessage.Data[0] = static_cast<uint8_t>(cal.Decel.get());
         TxMessage.Data[1] = static_cast<uint8_t>(cal.Decel.get() >> 8);
-        TxMessage.Data[2] = static_cast<uint8_t>(cal.clutch<<6|cal.reverse <<4|cal.parking <<2|cal.direction);
-        TxMessage.Data[3] = static_cast<uint8_t>(cal.start_eng);
+        TxMessage.Data[2] = static_cast<uint8_t>(cal.clutch  << 6 | cal.reverse << 4 |
+                                                 cal.parking << 2 | cal.direction);
+        TxMessage.Data[3] = static_cast<uint8_t>(cal.oil_filter << 1 | cal.start_eng);
         TxMessage.Data[4] = static_cast<uint8_t>(cal.Temp.get());//надо привести к таблице темп.!!!
         TxMessage.Data[5] = 0;//Скорость трактора!
         TxMessage.Data[6] = 0;//Reserved!
@@ -504,7 +505,7 @@ void KPP::GraphSetFR()//Good
 ////    //        //////\\   //         //    //   //  // //     //////\\     //     //        ////
 ////    ///////  //      \\  ///////  //////  //////   //   //  //      \\    //     //////    ////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void Calibrate::FlashWrite()//Good привести в соответствие с коментариями
+void Calibrate::FlashWrite() const//Good привести в соответствие с коментариями
 {
   const uint32_t* flash_address  = (uint32_t*)address;
   const uint32_t* source_address = (uint32_t*)&d;
