@@ -452,7 +452,7 @@ extern "C"
     if(TIM_GetITStatus(TIM5, TIM_IT_Update))
       TIM_ClearITPendingBit(TIM5, TIM_IT_Update);
   }
-  //Прерывание по TIM7-1 мс. Ведем отсчет времени, шлем в CAN аналоговые и дискретные сигналы.
+  //Прерывание по TIM7-1 мс. Ведем отсчет времени, шлём в CAN аналоговые и дискретные сигналы.
   void TIM7_IRQHandler()
   {
     if(TIM_GetITStatus(TIM7, TIM_IT_Update))
@@ -481,9 +481,9 @@ extern "C"
         if(cal.Parking_Is_On())
           tc.reset();//очень часто вызывается
         else if(cal.Filter_Is_On())
-          tc.lock();
+          tc.lock();//очень часто вызывается
         else
-          tc.unlock();
+          tc.unlock();//очень часто вызывается
       }
     }
   }
@@ -535,7 +535,7 @@ extern "C"
       else
         switch(RxMsg.ExtId)
         {
-          case 0x0CF00400: kpp.SetRpm(RxMsg.Data[4] * 256 + RxMsg.Data[3]); break;
+          case 0x0CF00400: kpp.SetRpm(RxMsg.Data[4] << 8 | RxMsg.Data[3]); break;
         }
     }
   }

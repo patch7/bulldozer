@@ -81,15 +81,15 @@ public:
   void TwoPres(CanRxMsg&);
   void ThreeTime(CanRxMsg&);
   void ThreePres(CanRxMsg&);
-  bool Filter_Is_On();
-  bool Parking_Is_On();
+  bool Filter_Is_On()  const;
+  bool Parking_Is_On() const;
   //bool Parking_Is_Change();
 
-  void Save();
+  void Save() const;
   void Valve(State&, Pressure);
   void RemoteCtrlAndRPM(uint8_t, uint16_t);
 private:
-  void FlashWrite();
+  void FlashWrite() const;
   void FlashRead();
 
   static const uint32_t address = 0x08060000;
@@ -128,10 +128,10 @@ private:
   uint8_t direct_ch  : 1;//true/false
 };
 
-inline bool Calibrate::Filter_Is_On()      { return oil_filter; }
-inline bool Calibrate::Parking_Is_On()     { return parking; }
+inline bool Calibrate::Filter_Is_On()  const     { return oil_filter; }
+inline bool Calibrate::Parking_Is_On() const     { return parking; }
 //inline bool Calibrate::Parking_Is_Change() { return parking_ch; }
-inline void Calibrate::Save() { FlashWrite(); }
+inline void Calibrate::Save() const { FlashWrite(); }
 inline void Calibrate::OtLeftTime(CanRxMsg& RxMsg)
 {
   for(uint8_t i = 0; i < RxMsg.DLC; ++i)

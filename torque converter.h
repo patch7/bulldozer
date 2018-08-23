@@ -1,5 +1,6 @@
 #ifndef __TC
 #define __TC
+
 class TC
 {
 public:
@@ -36,4 +37,5 @@ inline void TC::reset() const
   TIM_SetCompare4(TIM2, minpwm);
 }
 inline TC::status TC::state() const { return st; }
+
 #endif //__TC

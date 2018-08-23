@@ -505,7 +505,7 @@ void KPP::GraphSetFR()//Good
 ////    //        //////\\   //         //    //   //  // //     //////\\     //     //        ////
 ////    ///////  //      \\  ///////  //////  //////   //   //  //      \\    //     //////    ////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void Calibrate::FlashWrite()//Good привести в соответствие с коментариями
+void Calibrate::FlashWrite() const//Good привести в соответствие с коментариями
 {
   const uint32_t* flash_address  = (uint32_t*)address;
   const uint32_t* source_address = (uint32_t*)&d;
